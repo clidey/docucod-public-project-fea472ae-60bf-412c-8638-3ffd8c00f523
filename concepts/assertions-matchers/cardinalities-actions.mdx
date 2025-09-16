@@ -1,0 +1,196 @@
+---
+title: "Cardinalities and Actions in Mocks"
+description: "Understand how cardinalities (call counts) and actions (return, throw, invoke) work in GoogleMock to set precise behavioral expectations for dependencies. See how actions and cardinalities interact to capture intended usage and improve test rigor."
+---
+
+# Cardinalities and Actions in Mocks
+
+GoogleMock enables precise control over how mock methods are expected to behave and how often they are called. This page explains how to use **cardinalities** to specify call count expectations and **actions** to control mock method behavior during testing. Mastering these concepts empowers you to write rigorous, expressive tests that validate the interaction contracts between your code and its dependencies.
+
+---
+
+## Understanding Cardinalities: How Many Times?
+
+A **cardinality** defines how many times you expect a mocked method to be called during a test. It is specified with the `.Times()` clause in `EXPECT_CALL()` and governs test verification.
+
+### Common Cardinalities
+
+GoogleMock provides a rich set of predefined cardinalities:
+
+| Cardinality         | Description                                         |
+|---------------------|-----------------------------------------------------|
+| `AnyNumber()`       | The method may be called zero or more times.
+| `AtLeast(n)`        | The method must be called at least `n` times.
+| `AtMost(n)`         | The method must be called at most `n` times.
+| `Between(m, n)`     | The method must be called between `m` and `n` times (inclusive).
+| `Exactly(n)`        | The method must be called exactly `n` times. Use `Exactly(0)` to disallow calls.
+
+#### Example:
+
+```cpp
+EXPECT_CALL(mock_obj, FooMethod())
+    .Times(AtLeast(2));  // FooMethod() must be called 2 or more times
+```
+
+### How Cardinalities Affect Test Behavior
+
+- **Verification**: If a method is called fewer or more times than the cardinality allows, the test will fail.
+- **Sticky Expectations**: Expectations remain active and will report errors on oversaturation unless `.RetiresOnSaturation()` is used.
+- **Default Cardinality Inference**: If `.Times()` is omitted, GoogleMock infers cardinality based on `WillOnce()` and `WillRepeatedly()` clauses.
+
+### Defining Custom Cardinalities
+
+Advanced users can define custom call-count requirements by implementing the `CardinalityInterface`. This allows specialized usage patterns beyond built-in cardinalities.
+
+```cpp
+class EvenNumberCardinality : public testing::CardinalityInterface {
+ public:
+  bool IsSatisfiedByCallCount(int call_count) const override {
+    return (call_count % 2) == 0;
+  }
+
+  bool IsSaturatedByCallCount(int call_count) const override {
+    return false;
+  }
+
+  void DescribeTo(std::ostream* os) const override {
+    *os << "called even number of times";
+  }
+};
+
+Cardinality EvenNumber() {
+  return MakeCardinality(new EvenNumberCardinality);
+}
+
+EXPECT_CALL(mock, Bar()).Times(EvenNumber());
+```
+
+---
+
+## Using Actions: What Should the Mock Do?
+
+While cardinalities specify **how many times** a mock function is called, **actions** specify **what it does** when called. Actions define behavior for the mock method—such as returning a value, throwing exceptions, or invoking a callback.
+
+### Specifying Actions
+
+- Use `.WillOnce(action)` to specify the behavior for **one call** (can be called multiple times to set behaviors per invocation).
+- Use `.WillRepeatedly(action)` to specify the behavior for **all subsequent calls** after `.WillOnce()` clauses are exhausted.
+- Use `ON_CALL()` with `.WillByDefault(action)` to define default behavior when no strict expectation applies.
+
+### Common Built-in Actions
+
+- `Return(value)`: Return a value.
+- `ReturnRef(variable)`: Return a reference to a variable.
+- `ReturnPointee(pointer)`: Returns the pointee value of a pointer.
+- `Invoke(callable)`: Calls a function, method, lambda, or functor.
+- `DoAll(...)`: Combines multiple actions to run sequentially.
+- `SetArgPointee<N>(value)`: Set the value pointed to by the N-th argument.
+- `InvokeArgument<N>(args...)`: Invokes the N-th argument if it is callable.
+
+### Example: Returning Multiple Values
+
+```cpp
+EXPECT_CALL(mock_obj, GetValue())
+    .WillOnce(Return(10))
+    .WillOnce(Return(20))
+    .WillRepeatedly(Return(30));
+```
+
+This means: the first call to `GetValue()` returns 10, the second returns 20, and all subsequent calls return 30.
+
+### Using Lambdas or Functions as Actions
+
+If the built-in actions aren’t sufficient, you can supply custom callable objects or lambdas. You can selectively use parameters or ignore them:
+
+```cpp
+EXPECT_CALL(mock, Compute(_, _))
+    .WillOnce([](int x, int y) { return x + y; });
+```
+
+### Action Ordering with Multiple `WillOnce`
+
+Actions specified via multiple `WillOnce` apply sequentially with each matching call consuming one action. When exhausted, behavior depends on available `WillRepeatedly` or defaults.
+
+### Retiring Expectations
+
+Use `.RetiresOnSaturation()` on an expectation to mark it inactive once it has met its call count. This can prevent conflicts with other expectations that might match overlapping calls.
+
+---
+
+## How Cardinalities and Actions Interact
+
+The count constraints of cardinalities and the behavior defined by actions combine to express precise expectations:
+
+- `.Times(n)` states the number of times the method **should** be called.
+- `.WillOnce()` and `.WillRepeatedly()` define what happens **each time** the method is called.
+
+GoogleMock enforces that the number of `.WillOnce()` clauses doesn’t exceed the upper bound of `.Times()`. Warnings are printed if too many or too few actions are defined compared to the cardinality.
+
+If the method is called more times than expected (via cardinality), the test fails.
+
+### Example: Strictly Once with Return Value
+
+```cpp
+EXPECT_CALL(mock_obj, DoSomething())
+    .Times(1)
+    .WillOnce(Return(true));
+```
+
+The test expects exactly one call, and that call returns `true`.
+
+### Example: Flexible Number of Calls with Varying Actions
+
+```cpp
+EXPECT_CALL(mock_obj, Compute(_))
+    .Times(AtLeast(1))
+    .WillOnce(Return(1))
+    .WillOnce(Return(2))
+    .WillRepeatedly(Return(3));
+```
+
+Here, the first call returns 1, the second returns 2, and all further calls return 3, with at least one call required.
+
+---
+
+## Best Practices & Troubleshooting
+
+### Use ON_CALL and EXPECT_CALL Thoughtfully
+
+- Use `ON_CALL()` to specify default behaviors where the method call is not critical to test correctness.
+- Use `EXPECT_CALL()` when you want to verify the method call precisely.
+- Overusing `EXPECT_CALL()` might lead to brittle tests.
+
+### Avoid Excessive `WillOnce()` Clauses Without `.RetiresOnSaturation()` or Sequence
+
+Expectations are sticky and remain active after their call count is reached. Use `.RetiresOnSaturation()` or put expectations in an `InSequence` block to prevent conflicts.
+
+### Understanding Uninteresting vs Unexpected Calls
+
+- **Uninteresting Calls**: Called with no explicit expectation - produce warnings (naggy), can be suppressed with `NiceMock` or treated as errors with `StrictMock`.
+- **Unexpected Calls**: Called when expectations do not match arguments or calls exceed cardinality - always produce errors.
+
+### Debugging Calls and Cardinality Failures
+
+- Use `--gmock_verbose=info` flag to trace which expectations matched which calls.
+- Check for mismatches in argument matchers and call counts.
+
+### Tips for Defining Cardinalities
+
+- Use `Times(AnyNumber())` to allow any number of calls.
+- Use `Times(Exactly(n))` for precise invariant counts.
+- Use `AtLeast(n)` or `Between(m, n)` to allow flexible call counts.
+
+### When to Define Custom Cardinalities
+
+Only when built-in cardinalities do not capture your needs, such as requiring calls in even numbers or other non-trivial logic.
+
+---
+
+## Additional Resources
+
+- [gMock Cookbook — Recipes for Using gMock](https://github.com/google/googletest/blob/main/docs/gmock_cook_book.md) — practical examples on mocking, including cardinalities and actions.
+- [Setting Expectations and Actions](https://github.com/google/googletest/blob/main/docs/googlemock/reference/mocking.md#EXPECT_CALL) — detailed reference on `EXPECT_CALL` syntax.
+- [GoogleMock Cheat Sheet](https://github.com/google/googletest/blob/main/docs/gmock_cheat_sheet.md) — quick reference for cardinalities and actions.
+- [Managing Nice, Naggy, and Strict Mocks](https://github.com/google/googletest/blob/main/docs/gmock_cook_book.md#NiceStrictNaggy) — handling uninteresting call behaviors.
+
+---
