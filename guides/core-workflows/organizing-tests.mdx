@@ -1,0 +1,334 @@
+---
+title: "Organizing Test Suites and Fixtures"
+description: "Understand how to structure tests using test suites and fixtures. Walk through creating reusable set-up/tear-down logic and grouping related tests for greater project maintainability."
+---
+
+# Organizing Test Suites and Fixtures
+
+## Overview
+
+This guide will help you understand how to structure your tests effectively in GoogleTest by organizing them into test suites and utilizing fixtures. You'll learn how to create reusable setup and teardown logic that applies to groups of related tests, promoting maintainability and efficiency in your test projects.
+
+### Why Organize Tests with Suites and Fixtures?
+
+Tests should be grouped logically to reflect the structure of the code being tested. Using test suites and fixtures:
+
+- Improves readability by clearly associating tests with their tested units.
+- Enables shared setup and teardown logic to avoid duplication.
+- Allows expensive resources to be initialized once per suite rather than per test.
+- Enhances project maintainability as related tests are co-located.
+
+## Prerequisites
+
+- Basic understanding of C++ programming.
+- Familiarity with writing simple tests using GoogleTest (`TEST` macro).
+- Development environment configured with GoogleTest installed.
+
+## Expected Outcome
+
+By following this guide, you will be able to:
+
+- Define test suites to group related tests.
+- Create test fixtures to share common setup/teardown code.
+- Use per-test and per-suite setup and teardown effectively.
+- Write tests that reuse fixture code with `TEST_F`.
+
+## Estimated Time
+
+Approximately 15–30 minutes to understand and apply the concepts.
+
+## Difficulty Level
+
+Beginner to Intermediate.
+
+---
+
+## 1. Understanding Test Suites and Fixtures
+
+### Test Suites
+
+A **test suite** is a logical collection of related tests. In GoogleTest, the test suite is identified by the first argument of the `TEST` macro or the name of the fixture class in `TEST_F`.
+
+Example:
+```cpp
+TEST(FactorialTest, HandlesZeroInput) {
+  EXPECT_EQ(Factorial(0), 1);
+}
+
+TEST(FactorialTest, HandlesPositiveInput) {
+  EXPECT_EQ(Factorial(3), 6);
+}
+```
+Here, both tests belong to the `FactorialTest` test suite.
+
+### Test Fixtures
+
+A **test fixture** is a class derived from `testing::Test` that allows multiple tests to share common objects and setup/teardown logic.
+
+Benefits:
+- Common data members can be declared once.
+- Setup and cleanup code is centralized.
+
+Use `TEST_F` instead of `TEST` to run tests with fixtures.
+
+Example fixture class:
+```cpp
+class QueueTest : public testing::Test {
+ protected:
+  QueueTest() {
+    q1_.Enqueue(1);
+    q2_.Enqueue(2);
+    q2_.Enqueue(3);
+  }
+
+  Queue<int> q0_;  // empty queue
+  Queue<int> q1_;  // has one element
+  Queue<int> q2_;  // has two elements
+};
+```
+Tests using fixture:
+```cpp
+TEST_F(QueueTest, IsEmptyInitially) {
+  EXPECT_EQ(q0_.size(), 0);
+}
+
+TEST_F(QueueTest, DequeueWorks) {
+  int* n = q1_.Dequeue();
+  ASSERT_NE(n, nullptr);
+  EXPECT_EQ(*n, 1);
+  delete n;
+}
+```
+
+## 2. Using Setup and Teardown Methods
+
+GoogleTest provides two levels of setup and teardown:
+
+| Level                   | Method                  | When It Runs                                    |
+|-------------------------|-------------------------|------------------------------------------------|
+| Per Test (Instance-level)   | `SetUp()` and `TearDown()` | Before/after **each test** in the test suite     |
+| Per Test Suite (Class-level) | `SetUpTestSuite()` and `TearDownTestSuite()` | Before **first** test and after **last** test in the suite |
+
+### Per-Test Setup and Teardown
+
+Override `SetUp()` and `TearDown()` in your fixture class to prepare and clean up resources needed in each individual test.
+
+```cpp
+void SetUp() override {
+  // Called before each test
+}
+
+void TearDown() override {
+  // Called after each test
+}
+```
+The test framework creates a new fixture object for every test, calls `SetUp()`, runs the test, then calls `TearDown()` before destroying the object.
+
+### Per-Suite Setup and Teardown
+
+When tests share expensive setup resources that don't need to be recreated for each test, use the static methods:
+
+```cpp
+static void SetUpTestSuite() {
+  shared_resource_ = new Resource();
+}
+
+static void TearDownTestSuite() {
+  delete shared_resource_;
+  shared_resource_ = nullptr;
+}
+
+static Resource* shared_resource_;
+```
+GoogleTest calls `SetUpTestSuite()` once before running the first test in the suite, and `TearDownTestSuite()` after running the last test.
+
+**Important:**
+- Shared resources should not be modified by individual tests or must be restored before the test ends, ensuring test isolation.
+- `SetUpTestSuite()`/`TearDownTestSuite()` may be called multiple times in inheritance scenarios.
+
+## 3. Step-by-Step Instructions to Organize Tests
+
+### Step 1: Define a Test Fixture Class
+
+Start by creating a class inheriting from `testing::Test`.
+
+```cpp
+class MyFeatureTest : public testing::Test {
+ protected:
+  void SetUp() override {
+    // Prepare test objects
+  }
+
+  void TearDown() override {
+    // Clean up
+  }
+
+  // Declare shared objects here
+  MyFeature feature_;
+};
+```
+
+### Step 2: Add Per-Test-Suite Setup and Teardown (optional)
+
+If you have costly resources to share:
+
+```cpp
+static void SetUpTestSuite() {
+  expensive_resource_ = new ExpensiveResource();
+}
+static void TearDownTestSuite() {
+  delete expensive_resource_;
+  expensive_resource_ = nullptr;
+}
+
+static ExpensiveResource* expensive_resource_;
+```
+Define the static member outside the class:
+
+```cpp
+ExpensiveResource* MyFeatureTest::expensive_resource_ = nullptr;
+```
+
+### Step 3: Write Tests with `TEST_F`
+
+Use your fixture with `TEST_F`:
+
+```cpp
+TEST_F(MyFeatureTest, DoesAction) {
+  EXPECT_TRUE(feature_.Action());
+}
+
+TEST_F(MyFeatureTest, HandlesEdgeCase) {
+  EXPECT_EQ(feature_.Handle(-1), expected_value);
+}
+```
+Each test will automatically create a new fixture instance, call `SetUp()`, run the test body, then call `TearDown()`.
+
+### Step 4: (Optional) Use `SetUpTestSuite()` and `TearDownTestSuite()` for Shared Resources
+
+If your fixture needs to initialize or clean up resources once per test suite, implement the static methods as outlined above.
+
+---
+
+## 4. Best Practices and Practical Tips
+
+- **Name suites and fixtures clearly:** Use meaningful names that reflect the component or feature under test.
+- **Avoid sharing mutable state:** If you share objects across tests, ensure tests don’t mutate common state or properly reset it.
+- **Use `SetUp()`/`TearDown()` for per-test expenses:** For resources that are cheap or must be reset for each test.
+- **Use `SetUpTestSuite()`/`TearDownTestSuite()` for expensive or singleton resources:** This improves test performance.
+- **Do not depend on test order:** GoogleTest does not guarantee test execution order.
+- **Do not mix `TEST` and `TEST_F` with the same suite name:** It causes test conflicts and runtime errors.
+
+## 5. Common Pitfalls
+
+- **Spelling mistakes:** `SetUp()` must be camel case; `Setup()` will **not** be recognized.
+- **Ignoring test isolation:** Modifying shared state without resetting can introduce test order dependencies.
+- **Static shared resource leaks:** Failing to delete resources in `TearDownTestSuite()` can cause memory leaks.
+- **Multiple inheritance complications:** When fixtures inherit or are composed, be careful with static members and suite-wide setup.
+- **Incorrect test macro usage:** Always use `TEST_F` with fixtures, `TEST` for stand-alone tests.
+
+## 6. Examples
+
+### Basic Fixture with Per-Test Setup
+
+```cpp
+class DatabaseTest : public testing::Test {
+ protected:
+  void SetUp() override {
+    db_.Connect("test_db");
+  }
+
+  void TearDown() override {
+    db_.Disconnect();
+  }
+
+  Database db_;
+};
+
+TEST_F(DatabaseTest, InsertData) {
+  EXPECT_TRUE(db_.Insert("key", "value"));
+}
+
+TEST_F(DatabaseTest, DeleteData) {
+  EXPECT_TRUE(db_.Delete("key"));
+}
+```
+
+### Fixture with Per-Suite Setup
+
+```cpp
+class FileSystemTest : public testing::Test {
+ protected:
+  static void SetUpTestSuite() {
+    tmp_dir_ = new TemporaryDirectory("/tmp/test_dir");
+  }
+
+  static void TearDownTestSuite() {
+    delete tmp_dir_;
+    tmp_dir_ = nullptr;
+  }
+
+  void SetUp() override {
+    file_manager_.SetDirectory(tmp_dir_->path());
+  }
+
+  static TemporaryDirectory* tmp_dir_;
+  FileManager file_manager_;
+};
+
+TemporaryDirectory* FileSystemTest::tmp_dir_ = nullptr;
+
+TEST_F(FileSystemTest, CreateFile) {
+  EXPECT_TRUE(file_manager_.CreateFile("file.txt"));
+}
+
+TEST_F(FileSystemTest, DeleteFile) {
+  EXPECT_TRUE(file_manager_.DeleteFile("file.txt"));
+}
+```
+
+## 7. Troubleshooting
+
+| Problem                                                        | Explanation and Solution                                                                           |
+|----------------------------------------------------------------|--------------------------------------------------------------------------------------------------|
+| Tests fail with message about mixing `TEST` and `TEST_F`       | GoogleTest requires all tests in a suite to use the same fixture class. Use `TEST_F` consistently. |
+| `SetUp()` or `TearDown()` not called                            | Check spelling: use correct camel case with capital `U`.                                          |
+| Shared resource being leaked or double initialized              | Ensure resources in `SetUpTestSuite()` are allocated only once and properly cleaned in teardown.  |
+| Tests depend on side effects from other tests                   | Avoid shared mutable state or reset state in `SetUp()`/`TearDown()` to ensure test isolation.     |
+
+## 8. Additional Resources
+
+- GoogleTest Primer: [Basic Concepts and Fixtures](https://github.com/google/googletest/blob/main/docs/primer.md#test-fixtures-using-the-same-data-configuration-for-multiple-tests)
+- Advanced Guide: [Sharing Resources Between Tests](https://github.com/google/googletest/blob/main/docs/advanced.md#sharing-resources-between-tests-in-the-same-test-suite)
+- API Reference: [`SetUpTestSuite` and `TearDownTestSuite`](https://github.com/google/googletest/blob/main/docs/reference/testing.md#setuptestsuite)
+
+---
+
+
+## Summary
+This page explains how to organize tests in GoogleTest effectively using test suites and fixtures. It guides you through defining fixture classes, sharing setup and teardown logic at both the per-test and per-suite levels, and writing tests that reuse common setup through `TEST_F`. The documentation includes practical examples, best practices, common pitfalls, and troubleshooting advice to help you maintain scalable and maintainable test code.
+
+Key Sections:
+- Understanding Test Suites and Fixtures
+- Using Setup and Teardown Methods
+- Step-by-Step Instructions to Organize Tests
+- Best Practices and Practical Tips
+- Common Pitfalls
+- Examples
+- Troubleshooting
+- Additional Resources
+
+Important Links:
+- [GoogleTest Primer - Test Fixtures](https://github.com/google/googletest/blob/main/docs/primer.md#test-fixtures-using-the-same-data-configuration-for-multiple-tests)
+- [Advanced GoogleTest Topics - Sharing Resources Between Tests](https://github.com/google/googletest/blob/main/docs/advanced.md#sharing-resources-between-tests-in-the-same-test-suite)
+- [API Reference - Test Fixture Methods](https://github.com/google/googletest/blob/main/docs/reference/testing.md#setuptestsuite)
+
+Related Documentation:
+- Writing Your First GoogleTest: for basics on creating tests
+- Running and Configuring Tests: for test execution and flags
+- Value-Parameterized and Typed Tests: for advanced test patterns
+
+Next Steps:
+- Learn about parameterized tests using [`TEST_P`] and [`INSTANTIATE_TEST_SUITE_P`]
+- Explore mocking integration to simulate dependencies
+- Review running tests and advanced configuration for large projects
