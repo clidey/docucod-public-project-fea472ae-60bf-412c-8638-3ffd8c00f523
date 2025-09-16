@@ -1,0 +1,223 @@
+---
+title: "Writing Your First GoogleTest"
+description: "Learn how to create and run your first unit test with GoogleTest. This guide covers basic test case definition, test binary compilation, and running tests, serving as the ideal starting point for new users."
+---
+
+# Writing Your First GoogleTest
+
+Welcome to your hands-on guide to creating and running your first unit test using GoogleTest. This guide takes you through defining basic test cases, compiling your test binary, and executing tests. By the end, you'll be confidently running your initial tests and understanding the output results.
+
+---
+
+## Workflow Overview
+
+### What This Guide Enables You To Do
+- Define simple tests with the `TEST()` macro.
+- Build your test executable including GoogleTest.
+- Run your tests and interpret the basic console output.
+
+### Prerequisites
+- A working C++ development environment (compiler supporting C++17).
+- GoogleTest library installed or available in your project.
+- Basic knowledge of writing and building C++ programs.
+
+### Expected Outcome
+After completing this guide, you'll have:
+- Written your first test function.
+- Compiled your test into a runnable binary.
+- Executed the test binary and seen test pass/fail output.
+
+### Estimated Time
+Approximately 10-20 minutes, depending on your environment setup.
+
+### Difficulty Level
+Beginner.
+
+---
+
+## Step-by-Step Instructions
+
+### Step 1: Write a Simple Test
+Create a `.cc` file (e.g., `factorial_test.cc`) and include the GoogleTest header:
+
+```cpp
+#include <gtest/gtest.h>
+
+// A sample function to test
+int Factorial(int n) {
+  if (n <= 1) return 1;
+  else return n * Factorial(n - 1);
+}
+
+// Define a test using the TEST() macro:
+TEST(FactorialTest, HandlesZeroInput) {
+  EXPECT_EQ(Factorial(0), 1);
+}
+
+TEST(FactorialTest, HandlesPositiveInput) {
+  EXPECT_EQ(Factorial(1), 1);
+  EXPECT_EQ(Factorial(2), 2);
+  EXPECT_EQ(Factorial(3), 6);
+  EXPECT_EQ(Factorial(8), 40320);
+}
+```
+
+> **Note**: `TEST(TestSuiteName, TestName)` defines a test named `TestName` inside the `TestSuiteName`. Do not use underscores in names, as GoogleTest reserves `_` for internal purposes.
+
+### Step 2: Compile the Test Binary
+Use your preferred build system or compiler commands to compile this file together with the GoogleTest library.
+
+For example, with `g++` and GoogleTest installed globally:
+
+```bash
+g++ -std=c++17 -isystem /usr/include/gtest -pthread factorial_test.cc -lgtest -lgtest_main -o factorial_test
+```
+
+- `-isystem /usr/include/gtest` points to GoogleTest headers.
+- `-lgtest -lgtest_main` links GoogleTest libraries.
+- `-pthread` enables threading support needed by GoogleTest.
+
+**Expected Result**: A runnable test executable named `factorial_test` (or `factorial_test.exe` on Windows).
+
+### Step 3: Run the Tests
+Execute your test binary:
+
+```bash
+./factorial_test
+```
+
+You should see output similar to:
+
+```none
+[==========] Running 2 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 2 tests from FactorialTest
+[ RUN      ] FactorialTest.HandlesZeroInput
+[       OK ] FactorialTest.HandlesZeroInput (0 ms)
+[ RUN      ] FactorialTest.HandlesPositiveInput
+[       OK ] FactorialTest.HandlesPositiveInput (0 ms)
+[----------] 2 tests from FactorialTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 2 tests from 1 test suite ran. (0 ms total)
+[  PASSED  ] 2 tests.
+```
+
+This shows each test running and their results.
+
+### Optional: Write a Custom `main()` Function
+Usually, you do not need this because GoogleTest provides a default `main()` in the `gtest_main` library.
+However, if you want custom setup or tear-down before all tests, write your own:
+
+```cpp
+#include <gtest/gtest.h>
+
+int main(int argc, char** argv) {
+  testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+```
+
+> `InitGoogleTest()` parses command line flags to control test execution.
+> `RUN_ALL_TESTS()` runs all registered tests and returns 0 if all passed.
+
+---
+
+## Examples
+
+### Simplest Possible Test
+
+```cpp
+#include <gtest/gtest.h>
+
+TEST(SimpleTest, TrueIsTrue) {
+  EXPECT_TRUE(true);
+}
+```
+
+### Using Assertions
+
+```cpp
+TEST(MathTest, Addition) {
+  int sum = 2 + 2;
+  EXPECT_EQ(sum, 4) << "Basic addition failed!";
+}
+```
+
+### Using Fixtures (Reusing Setup Code)
+
+```cpp
+class QueueTest : public testing::Test {
+ protected:
+  void SetUp() override {
+    // Setup code runs before each test
+    q.Enqueue(1);
+  }
+
+  Queue<int> q;
+};
+
+TEST_F(QueueTest, SizeIsOne) {
+  EXPECT_EQ(q.size(), 1);
+}
+
+TEST_F(QueueTest, DequeueReturnsOne) {
+  EXPECT_EQ(q.Dequeue(), 1);
+}
+```
+
+---
+
+## Troubleshooting & Tips
+
+### Common Pitfalls
+- **Missing default constructor in fixture class**: GoogleTest needs to instantiate fixture classes via the default constructor. Define one if you write custom constructors.
+- **Test names with underscores**: Avoid underscores `_` in test or test suite names.
+- **Linking errors**: Ensure your compiler command links against `-lgtest` and `-lgtest_main`.
+- **Failing to call `InitGoogleTest` before `RUN_ALL_TESTS`**: Always initialize GoogleTest before running tests.
+
+### Best Practices
+- Use `EXPECT_` assertions when you want tests to continue after failure.
+- Use `ASSERT_` assertions when failure should abort the current test.
+- Group logically related tests into the same TestSuite.
+- Prefer test fixtures (`TEST_F`) when multiple tests share setup code.
+
+### Performance Tips
+- Keep tests small and focused.
+- Avoid shared mutable state between tests.
+- Use `SetUpTestSuite()` and `TearDownTestSuite()` for expensive shared test resources.
+
+---
+
+## Next Steps
+
+After writing and running your first tests, proceed to:
+
+- [Organizing Test Suites and Fixtures](https://example.com/guides/core-workflows/organizing-tests) to write more maintainable tests.
+- [Running and Configuring Tests](https://example.com/guides/core-workflows/running-and-configuring-tests) for fine-tuning your test runs.
+- Review the [GoogleTest Primer](https://example.com/docs/primer) for comprehensive fundamentals.
+- Explore [Writing Custom Matchers](https://example.com/api-reference/matchers-and-advanced-assertions/writing-custom-matchers) for more expressive tests.
+
+---
+
+## References
+
+- [GoogleTest Primer](https://example.com/docs/primer)
+- [GoogleTest Assertions Reference](https://example.com/docs/reference/assertions.md)
+- [GoogleTest API Reference - Test & Fixture Definitions](https://example.com/api-reference/googletest-core-apis/test-case-definition)
+- [GoogleTest Official GitHub Repository](https://github.com/google/googletest)
+
+---
+
+View more guides:
+- [Organizing Test Suites and Fixtures](/guides/core-workflows/organizing-tests)
+- [Running and Configuring Tests](/guides/core-workflows/running-and-configuring-tests)
+
+
+<Check>
+Remember to always check the return value of `RUN_ALL_TESTS()` in your `main()` function. This return value indicates whether all tests passed.
+</Check>
+
+<Tip>
+For quick test runs during development, use `--gtest_filter` flag to run subsets of tests.
+</Tip>
