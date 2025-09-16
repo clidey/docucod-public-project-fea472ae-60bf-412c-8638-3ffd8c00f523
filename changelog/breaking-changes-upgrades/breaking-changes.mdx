@@ -1,0 +1,168 @@
+---
+title: "Breaking Changes and Migration Notes"
+description: "Summarizes changes that may disrupt compatibility or require user action, with migration tips and practical advice for addressing disruptions. Ensures users don’t miss critical changes that could affect builds or test coverage."
+---
+
+# Breaking Changes and Migration Notes
+
+This page summarizes critical changes in GoogleTest that may disrupt compatibility or require user action. It provides practical migration tips and advice so you can update your builds and tests smoothly, ensuring no unexpected disruptions to your projects.
+
+---
+
+## Understanding Breaking Changes
+
+Breaking changes affect the external behavior or interfaces of GoogleTest in ways that can cause compilation errors, runtime failures, or different test outcomes if your code is not updated accordingly. These changes can arise from improvements to API design, removal or renaming of features, or platform support adjustments.
+
+As a user, you should always review this page when upgrading GoogleTest to a newer major or minor version to understand what changes impact your codebase and how to fix or adapt your tests.
+
+---
+
+## Common Sources of Breaking Changes
+
+- **API Renaming and Removal:** Functions, macros, or classes that have been renamed, replaced, or removed to improve clarity or consistency.
+- **Behavioral Changes:** Modifications to how assertions, test fixtures, or mocks function, which may affect test logic or results.
+- **Compiler and Language Requirements:** Enforced minimum C++ standards or compiler versions.
+- **Platform Support:** Dropping or adding support for specific platforms, affecting portability.
+- **Flag and Macro Changes:** Changes in default or supported flag values and macro availability.
+
+---
+
+## Notable Breaking Changes and Migration Advice
+
+### 1. C++17 Minimum Language Standard
+
+GoogleTest now requires C++17 or newer to compile and run correctly. This requirement is validated during build configuration.
+
+**Migration Tip:**
+- Ensure your build system specifies at least C++17 (e.g., `-std=c++17` in compilers).
+- Verify that your compiler version supports C++17 fully.
+
+### 2. Internal Macros and Symbols are Strictly Private
+
+Symbols or macros ending with an underscore (`_`) and those in the internal namespace are subject to change without notice. User code must avoid depending on these.
+
+**Migration Tip:**
+- Use only GoogleTest's public API as documented.
+- Refactor any code relying on internal macros or headers.
+
+### 3. Exception and RTTI Detection Macros
+
+GoogleTest detects compiler support for exceptions and RTTI to enable features accordingly. Users can manually override these via macros, but GoogleTest now has stricter environment detection.
+
+**Migration Tip:**
+- Review your build macros to ensure compatibility with GoogleTest's detection logic.
+
+### 4. Deprecation of Legacy MOCK_METHOD Macros
+
+The older set of `MOCK_METHODn` macros have been replaced by the unified and more robust `MOCK_METHOD` macro with explicit argument and qualifier support.
+
+**Migration Tip:**
+- Update mock classes to use the modern `MOCK_METHOD` macro.
+- Refer to [Mocking Reference](../reference/mocking.md#MOCK_METHOD) for examples.
+
+### 5. Changes in Death Test Styles and Support
+
+Default death test style remains "fast", but "threadsafe" style is recommended for multi-threaded environments despite slower execution.
+
+**Migration Tip:**
+- Consider setting the flag `--gtest_death_test_style=threadsafe` in your test runs for robust death tests.
+- Refactor death tests to isolate side effects as tests may be re-executed.
+
+### 6. Stream Redirection and Platform Support
+
+Some platforms (e.g., embedded or mobile) no longer support stream redirection fully, affecting capturing of stdout/stderr in tests.
+
+**Migration Tip:**
+- Be mindful about dependent tests on output capturing features.
+- Use conditional compilation if targeting unsupported platforms.
+
+### 7. Mutex and ThreadLocal Implementation Changes
+
+GoogleTest has updated synchronization primitives internally to support broader platforms and improve thread safety.
+
+**Migration Tip:**
+- Ensure that any custom extensions or test utilities that interact with GoogleTest internal threading use public APIs.
+
+---
+
+## Migration Steps
+
+<Steps>
+<Step title="Update Your Build Environment for C++17">
+Confirm your compiler and build configuration specify C++17 or higher. This is mandatory and ensures compatibility with the latest GoogleTest features.
+</Step>
+<Step title="Avoid Using Internal Headers and Macros">
+If your tests or utilities include internal headers like `gtest/internal/gtest-port.h` or use internal macros ending with underscores, refactor to rely only on the public API. Internal interfaces may change without notice.
+</Step>
+<Step title="Replace Legacy Mock Macros">
+Replace all uses of old `MOCK_METHODn` macros with the new `MOCK_METHOD` macro, which has clearer syntax and supports all modern C++ features.
+</Step>
+<Step title="Review Death Tests for Thread Safety">
+Revisit death tests to confirm they behave correctly under the "threadsafe" style if you enable it; fix tests sensitive to re-execution or multithreading concerns.
+</Step>
+<Step title="Adjust for Stream Redirection Limits">
+If you target platforms with limited stream redirection support, adjust your tests to avoid relying on captured stdout/stderr or use alternative logging.
+</Step>
+</Steps>
+
+---
+
+## Troubleshooting Common Breaking Change Issues
+
+### Compilation Fails After Upgrade
+
+- **Error:** "C++ versions less than C++17 are not supported".
+  - **Solution:** Update your compiler flags to enable C++17.
+
+- **Error:** "Undefined references" related to GoogleTest internals or missing default constructors.
+  - **Solution:** Ensure test fixtures have default constructors; avoid using internal-only APIs.
+
+### Unexpected Test Failures
+
+- If your death tests behave inconsistently, verify that you have set the death test style appropriately and that side effects do not leak across death test boundaries.
+
+### Mocking Changes
+
+- If mocks fail with errors about `MOCK_METHOD` usage, migrate any legacy mock macros to the new syntax.
+- Confirm that uninteresting calls match the intended mock strictness (NiceMock, StrictMock, NaggyMock).
+
+---
+
+## Additional Resources
+
+- [Mocking Reference](../reference/mocking.md) — Detailed guide on mocks, including breaking changes in macros
+- [Assertions Reference](../reference/assertions.md) — How assertions might have changed with new versions
+- [Advanced GoogleTest Topics](../docs/advanced.md) — Deep dive on test writing, death tests, and more
+- [Supported Platforms](../docs/platforms.md) — Platform and compiler requirements and updates
+- [Version History and Migration Guides](./version-history) — Review complete version history with breaking changes
+
+---
+
+## Summary
+
+This page ensures you don’t miss critical breaking changes when upgrading GoogleTest. It explains what has changed, why, and how to adapt your tests and build for continued success. Paying close attention to minimum language standards, mock macro updates, death test behavior, and platform specifics will save you time and frustration.
+
+Always combine this page with detailed release notes and migration guides linked below for comprehensive upgrade planning.
+
+---
+
+## Quick Migration Checklist
+
+- Upgrade compiler to support C++17.
+- Refactor code to avoid using internal macros or headers.
+- Replace all old-style mock macros with modern `MOCK_METHOD`.
+- Review and adapt death tests for the "threadsafe" style.
+- Verify stream capturing usage on target platforms.
+- Test mocks for expected uninteresting call warnings or errors.
+
+---
+
+For any unresolved issues, please refer to the official GitHub repository, community forums, and the GoogleTest issue tracker.
+
+<Check>
+Stay up to date with the latest GoogleTest releases and consult the [Version History & Major Releases](./version-history) page regularly.
+</Check>
+
+---
+
+This document is essential for anyone maintaining or upgrading GoogleTest in active projects, enabling you to spot incompatibilities early and apply corrections efficiently.
