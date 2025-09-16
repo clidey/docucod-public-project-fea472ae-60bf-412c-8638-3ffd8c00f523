@@ -1,0 +1,339 @@
+---
+title: "Test & Fixture Definitions"
+description: "Reference for defining tests, test cases, and test fixtures using GoogleTest's main macros and types. Includes best practices for grouping tests, structuring test classes, and using setup/teardown lifecycles. Critical for authoring maintainable and expressive tests."
+---
+
+# Test & Fixture Definitions
+
+This reference details how to define tests, test cases, and test fixtures in GoogleTest, focusing on the core macros and types necessary to author maintainable and expressive tests. It clarifies best practices around naming, grouping, lifecycle methods, and structuring test code to deliver reliable and clear test suites.
+
+---
+
+## Overview of Test Definitions
+
+GoogleTest provides several fundamental macros for defining tests:
+
+- **`TEST(TestSuiteName, TestName)`**: Defines an individual test function within a test suite.
+- **`TEST_F(TestFixtureName, TestName)`**: Defines a test that uses a test fixture class.
+- **`TEST_P(TestFixtureName, TestName)`**: Defines a value-parameterized test using a parameterized fixture.
+
+These macros enable grouping and organizing tests logically, facilitate per-test and per-suite resource management, and improve test maintainability.
+
+### Test Suites and Test Names
+
+- Both the *test suite* name and the *test* name must be valid C++ identifiers.
+- Neither should contain underscores (`_`). Underscores are reserved for special internal use, and using them in names can cause collisions or unexpected failures.
+- Different test suites can contain tests with the same individual test name.
+
+<Note>
+GoogleTest generates internal test classes named by joining `TestSuiteName` and `TestName` with underscores. Using underscores in those names can lead to invalid or conflicting symbol names.
+</Note>
+
+---
+
+## Writing Basic Tests with `TEST`
+
+Use the `TEST` macro for simple, stateless tests that don't require a fixture:
+
+```cpp
+TEST(FactorialTest, HandlesZeroInput) {
+  EXPECT_EQ(Factorial(0), 1);
+}
+
+TEST(FactorialTest, HandlesPositiveInput) {
+  EXPECT_EQ(Factorial(1), 1);
+  EXPECT_EQ(Factorial(2), 2);
+  EXPECT_EQ(Factorial(3), 6);
+}
+```
+
+*Tests within the same suite (`FactorialTest`) are logically grouped.*
+
+Tests run independently and sequentially, and any assertion failures within a test directly impact that test's success or failure.
+
+---
+
+## Using Test Fixtures with `TEST_F`
+
+When multiple tests share setup/teardown logic or resources, use test fixtures.
+
+### Defining a Test Fixture
+
+1. Derive a class from `testing::Test`.
+2. Declare shared objects or setup code in constructor or `SetUp()`.
+3. Put corresponding cleanup in destructor or `TearDown()`.
+
+Example fixture for testing a queue:
+
+```cpp
+class QueueTest : public testing::Test {
+ protected:
+  QueueTest() {
+    // Setup for each test
+    q1_.Enqueue(1);
+    q2_.Enqueue(2);
+    q2_.Enqueue(3);
+  }
+
+  Queue<int> q0_;  // empty
+  Queue<int> q1_;  // one element
+  Queue<int> q2_;  // two elements
+};
+```
+
+### Writing Tests Using Fixtures
+
+Use `TEST_F` with the fixture class name:
+
+```cpp
+TEST_F(QueueTest, IsEmptyInitially) {
+  EXPECT_EQ(q0_.size(), 0);
+}
+
+TEST_F(QueueTest, DequeueWorks) {
+  int* n = q0_.Dequeue();
+  EXPECT_EQ(n, nullptr);
+
+  n = q1_.Dequeue();
+  ASSERT_NE(n, nullptr); // Fail and abort early if null
+  EXPECT_EQ(*n, 1);
+  delete n;
+}
+```
+
+*Each `TEST_F` test constructs a fresh fixture object, ensuring test isolation.*
+
+<Callout>
+Test fixture objects are created and destroyed per test. Setup runs before the test body; teardown afterwards.
+</Callout>
+
+### Constructor vs. `SetUp()` for Fixtures
+
+- Use constructors and destructors when you want constants or to leverage standard C++ construction/destruction behavior.
+- Use `SetUp()` and `TearDown()` when you need to call virtual methods or want to use assertion macros, which are not allowed in constructors/destructors.
+
+<Note>
+Avoid `ASSERT_*` in constructors/destructors; use `SetUp()` for test failures during setup.
+</Note>
+
+### Derived Fixtures
+
+Test fixtures can be subclassed to share or extend behavior:
+
+```cpp
+class BaseTest : public testing::Test {
+ protected:
+  // Common setup
+};
+
+class DerivedTest : public BaseTest {
+ protected:
+  void SetUp() override {
+    BaseTest::SetUp();
+    // Additional setup
+  }
+
+  void TearDown() override {
+    // Cleanup
+    BaseTest::TearDown();
+  }
+};
+
+TEST_F(DerivedTest, TestCase) { ... }
+```
+
+---
+
+## Parameterized Tests: `TEST_P` and `INSTANTIATE_TEST_SUITE_P`
+
+GoogleTest supports running tests multiple times with different parameters.
+
+- Define a fixture that inherits from `testing::TestWithParam<T>`, where `T` is the parameter type.
+- Use `TEST_P` to define the parameterized test body.
+- Use `INSTANTIATE_TEST_SUITE_P` to provide parameter values.
+
+Example:
+
+```cpp
+class MyParamTest : public testing::TestWithParam<int> {
+  // ...
+};
+
+TEST_P(MyParamTest, DoesSomething) {
+  int param = GetParam();
+  EXPECT_TRUE(MyFunction(param));
+}
+
+INSTANTIATE_TEST_SUITE_P(ValuesExample, MyParamTest, testing::Values(1, 2, 3));
+```
+
+Tests run once per parameter value.
+
+<Note>
+Using parameter generators like `Values()`, `Range()`, `Combine()` produces test parameter sequences.
+</Note>
+
+---
+
+## Typed Tests and Type-Parameterized Tests
+
+GoogleTest offers *typed tests* and *type-parameterized tests* to run the same test logic for multiple types.
+
+- Typed tests use `TYPED_TEST_SUITE` and `TYPED_TEST` macros, with types known at compile time.
+- Type-parameterized tests use `TYPED_TEST_SUITE_P`, `TYPED_TEST_P`, and registration macros, allowing type lists to be specified later.
+
+They enable testing interfaces or concepts across diverse implementations and types.
+
+Example typed test:
+
+```cpp
+template <typename T>
+class MyTypedTest : public testing::Test {
+ public:
+  T value_;
+};
+
+using MyTypes = ::testing::Types<int, double, char>;
+TYPED_TEST_SUITE(MyTypedTest, MyTypes);
+
+TYPED_TEST(MyTypedTest, TestProperty) {
+  TypeParam val = this->value_;
+  EXPECT_TRUE(SomeTest(val));
+}
+```
+
+---
+
+## Names and Naming Conventions
+
+- Avoid underscores in test suite, test, and fixture names.
+- Use descriptive, C++-style names following common naming conventions.
+- Be consistent to keep tests readable and maintainable.
+
+<Note>
+Violating naming guidelines can cause confusing errors or test execution issues.
+</Note>
+
+---
+
+## Common Patterns and Best Practices
+
+### Group related tests in the same test suite to improve discoverability and maintenance.
+
+### Use fixtures (`TEST_F`) for shared setup and teardown to avoid duplication.
+
+### Use constructors and destructors in fixtures to initialize members that don’t need assertions.
+
+### Use `SetUp()` and `TearDown()` to perform setup or cleanup that might need assertions or polymorphic behavior.
+
+### Parameterize tests when you want to validate behavior across multiple inputs without duplicating test code.
+
+### Use typed tests to confirm a suite of types conform to expected behavior.
+
+### Always return the result of `RUN_ALL_TESTS()` from `main()` to ensure proper test framework integration.
+
+### Avoid mixing `TEST()` and `TEST_F()` in the same test suite.
+
+### When sharing fixture logic across suites, derive fixtures rather than copy-pasting code.
+
+---
+
+## Troubleshooting Common Issues
+
+- **Underscore in names causes invalid identifiers:** Rename test or suite.
+- **Mixing fixture and non-fixture tests in the same suite:** Separate into different suites.
+- **`TEST_F(FooTest, Bar)` errors "no matching function for call to FooTest::FooTest()"**: Provide a default constructor or avoid disabling it.
+- **Using assertion macros in constructors/destructors**: Move to `SetUp()`/`TearDown()`.
+
+For detailed FAQ and additional clarifications, see the [GoogleTest FAQ](faq.md).
+
+---
+
+## Accessing Test Metadata Programmatically
+
+To get information about the currently running test:
+
+```cpp
+const testing::TestInfo* test_info = testing::UnitTest::GetInstance()->current_test_info();
+if(test_info) {
+  std::cout << "Running test " << test_info->test_suite_name()
+            << "." << test_info->name() << std::endl;
+}
+```
+
+Use this in logging, debugging, or generating dynamic test behaviors.
+
+---
+
+## Summary
+
+GoogleTest’s core macros for defining tests and fixtures:
+
+| Macro                 | Purpose                                      |
+|-----------------------|----------------------------------------------|
+| `TEST`                | Defines a simple test in a suite               |
+| `TEST_F`              | Defines a test using a fixture class           |
+| `TEST_P`              | Defines a value-parameterized test              |
+| `INSTANTIATE_TEST_SUITE_P` | Instantiates parameterized tests               |
+| `TYPED_TEST_SUITE`    | Defines typed test suites                        |
+| `TYPED_TEST`          | Defines typed tests                              |
+| `TYPED_TEST_SUITE_P`  | Defines type-parameterized test suites          |
+| `TYPED_TEST_P`        | Defines type-parameterized tests                 |
+
+Consider lifecycle and naming best practices for maintainable and robust tests.
+
+---
+
+## See Also
+
+- [GoogleTest Primer](primer.md) for foundational concepts and examples.
+- [Advanced Topics](advanced.md) for parameterized and typed tests details.
+- [Testing Reference](reference/testing.md) for full API reference on testing macros, types, and classes.
+- [GoogleTest FAQ](faq.md) for common pitfalls and clarifications.
+
+---
+
+## Example: Complete Simple Fixture Test
+
+```cpp
+class QueueTest : public testing::Test {
+ protected:
+  QueueTest() {
+    // Setup fresh state for each test
+    q_.Enqueue(42);
+  }
+
+  void SetUp() override {
+    // Additional setup if needed
+  }
+
+  void TearDown() override {
+    // Cleanup after each test
+  }
+
+  Queue<int> q_;
+};
+
+TEST_F(QueueTest, IsNotEmptyAfterEnqueue) {
+  EXPECT_GT(q_.size(), 0);
+}
+
+TEST_F(QueueTest, DequeueReturnsSameValue) {
+  int* val = q_.Dequeue();
+  ASSERT_NE(val, nullptr);
+  EXPECT_EQ(*val, 42);
+  delete val;
+}
+```
+
+This illustrates the typical flow:
+
+1. GoogleTest creates a new `QueueTest` fixture instance.
+2. Calls its `SetUp()` method.
+3. Runs the test body.
+4. Calls `TearDown()`.
+5. Deletes the fixture.
+
+Each test runs independently with fresh fixture state.
+
+---
