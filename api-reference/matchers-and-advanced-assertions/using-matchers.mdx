@@ -1,0 +1,336 @@
+---
+title: "Using Built-in Matchers"
+description: "A catalog of built-in matchers (polymorphic, container, regex, comparison, etc.), their parameters, and example usages in assertions or expectations. Empowers users to write clear, intention-revealing tests for complex types."
+---
+
+# Using Built-in Matchers
+
+GoogleMock offers a powerful collection of built-in matchers that allow you to specify precisely how mock methods' arguments should be matched. These matchers empower you to write expressive, intention-revealing tests for complex types without the need to write custom matching logic. This page serves as a comprehensive catalog of these built-in matchers, illustrating their parameters and typical usage patterns in assertions and expectations.
+
+---
+
+## What Are Matchers?
+
+Matchers are predicates used to verify method arguments or assertion values. Rather than specifying exact values, you can specify properties or constraints that a value must satisfy. This allows your tests to be more flexible and readable.
+
+For example, instead of writing:
+
+```cpp
+EXPECT_CALL(foo, Bar(42));
+```
+
+which strictly matches only the value `42`, you can write:
+
+```cpp
+using ::testing::Gt;
+EXPECT_CALL(foo, Bar(Gt(40)));  // Matches any value greater than 40.
+```
+
+Matchers can be simple (e.g., `_` for "anything"), or complex, built up by composing simpler matchers. GoogleMock provides matchers for primitives, containers, strings, pointers, and more.
+
+---
+
+## Categories of Built-in Matchers
+
+### 1. Polymorphic Matchers
+
+These matchers are type-agnostic and adapt to the type of the argument. Useful when the exact type can vary, or is cumbersome to specify.
+
+- `_` (`testing::_`): Matches any value of any type. Wildcard matcher often used when argument value isn't relevant.
+
+- `Not(m)`: Matches if the argument does *not* match matcher `m`.
+
+*
+
+### 2. Comparison Matchers
+
+Matchers for typical comparison operations:
+
+| Matcher    | Meaning                      |
+|------------|------------------------------|
+| `Eq(x)`   | Equal to `x`                |
+| `Ne(x)`   | Not equal to `x`            |
+| `Lt(x)`   | Less than `x`               |
+| `Le(x)`   | Less than or equal to `x`   |
+| `Gt(x)`   | Greater than `x`            |
+| `Ge(x)`   | Greater than or equal to `x`|
+
+**Example:**
+
+```cpp
+EXPECT_CALL(foo, Process(Ge(10)));  // Argument >= 10
+```
+
+### 3. Container Matchers
+
+Used to validate STL-like containers and ranges.
+
+- `ElementsAre(...)`: Matches containers whose elements, in order, match each of the given matchers or values.
+
+- `UnorderedElementsAre(...)`: Matches containers that contain exactly the given elements, but in any order.
+
+- `ElementsAreArray(array_or_container)`: Like `ElementsAre()`, but takes a homogeneous sequence like array or vector.
+
+- `UnorderedElementsAreArray(...)`: Like `UnorderedElementsAre()` but takes iterable.
+
+- `Contains(element_matcher)`: Matches containers that contain at least one element matching the matcher.
+
+- `SizeIs(m)`: Matches containers whose size satisfies matcher `m` (e.g., `SizeIs(3)`, `SizeIs(Ge(5))`).
+
+- `Each(m)`: Matches containers whose *every* element satisfies matcher `m`.
+
+- `Pair(k,m)`: Matches maps or pairs with first key matches `k` and second value matches `m`.
+
+- `Key(k)`: Matches a pair where the first element (key) matches matcher `k`.
+
+**Example:**
+
+```cpp
+EXPECT_CALL(foo, Handle(std::vector<int>(ElementsAre(1, 2, 3))));
+EXPECT_THAT(my_map, Contains(Pair(Eq("key"), Ge(100))));
+```
+
+### 4. String Matchers
+
+Matchers specialized for strings with various common checks:
+
+- `StrEq(s)`: Matches strings exactly equal to `s`.
+
+- `StrNe(s)`: Matches strings not equal to `s`.
+
+- `StrCaseEq(s)`: Case-insensitive equal.
+
+- `StrCaseNe(s)`: Case-insensitive not equal.
+
+- `HasSubstr(substring)`: Matches strings containing `substring`.
+
+- `StartsWith(prefix)`: Matches strings that start with `prefix`.
+
+- `EndsWith(suffix)`: Matches strings that end with `suffix`.
+
+**Example:**
+
+```cpp
+EXPECT_CALL(logger, LogMessage(HasSubstr("error")));
+```
+
+### 5. Pointer and Reference Matchers
+
+- `IsNull()`: Matches null pointers (raw or smart pointers).
+
+- `NotNull()`: Matches any non-null pointer.
+
+- `Pointee(m)`: Matches pointers pointing to a value that matches matcher `m`.
+
+- `Ref(var)`: Matches a reference to the specific variable `var`.
+
+- `Address(m)`: Matches objects whose address satisfies matcher `m`.
+
+**Example:**
+
+```cpp
+EXPECT_CALL(ptr_mock, Foo(Pointee(Eq(42))));
+```
+
+### 6. Floating-Point Matchers
+
+Specialized matchers that account for floating-point precision and NaN handling:
+
+- `FloatEq(value)`: Matches floats approximately equal to `value` (4 ULPs precision).
+
+- `DoubleEq(value)`: Matches doubles approximately equal to `value`.
+
+- `NanSensitiveFloatEq(value)`: Like `FloatEq` but treats NaNs as equal.
+
+- `NanSensitiveDoubleEq(value)`: Like `DoubleEq` but treats NaNs as equal.
+
+- `FloatNear(value, max_abs_error)`: Matches floats within absolute error.
+
+- `DoubleNear(value, max_abs_error)`: Matches doubles within absolute error.
+
+### 7. Tuple and Multi-argument Matchers
+
+- `AllOf(m1, m2, ...)`: Matches if all matchers match.
+
+- `AnyOf(m1, m2, ...)`: Matches if any matcher matches.
+
+- `Args<k1,k2,...>(m)`: Matches the selected arguments as a tuple.
+
+- `AllArgs(m)`: Matches all arguments combined.
+
+**Example:**
+
+```cpp
+EXPECT_CALL(m, Func(_)).With(Lt());  // Matches calls where arg0 < arg1
+EXPECT_CALL(m, Foo(_, _)).With(AllOf(Args<0,1>(Le()), Args<1,2>(Gt())));
+```
+
+---
+
+## Practical Examples
+
+### Basic Matcher Usage in EXPECT_CALL
+
+```cpp
+#include <gmock/gmock.h>
+using ::testing::_;
+using ::testing::Gt;
+using ::testing::Return;
+
+EXPECT_CALL(mock_obj, Sort(ElementsAre(1, 2, 3)))  // Container value match
+    .Times(1);
+
+EXPECT_CALL(mock_obj, Compute(Gt(10), _))            // Mixed matchers
+    .WillOnce(Return(true));
+```
+
+### Using Matchers with Assertions
+
+Matchers integrate with googletest assertions via `EXPECT_THAT` and `ASSERT_THAT`.
+
+```cpp
+#include <gmock/gmock.h>
+using ::testing::Contains;
+using ::testing::Ge;
+
+EXPECT_THAT(container, Contains(Ge(100)));
+EXPECT_THAT(StringValue, StartsWith("Hello"));
+```
+
+### Matching Pointer Arguments
+
+```cpp
+using ::testing::Pointee;
+using ::testing::NotNull;
+
+EXPECT_CALL(ptr_mock, Process(Pointee(Eq(42))));
+EXPECT_CALL(ptr_mock, Process(NotNull()));
+```
+
+### Matching Complex Containers and Their Elements
+
+```cpp
+EXPECT_CALL(mock, DoStuff(ElementsAre(Eq(1), Gt(10), _)));
+EXPECT_CALL(mock, DoOtherStuff(UnorderedElementsAre(1, 2, 3)));
+```
+
+### Matching Member Variables or Properties of Objects
+
+You can validate members or returned values from methods using `Field` and `Property`:
+
+```cpp
+using ::testing::Field;
+using ::testing::Property;
+
+EXPECT_CALL(mock, Process(Field(&MyObject::status, Eq("OK"))));
+EXPECT_CALL(mock, Process(Property(&MyObject::GetStatus, Eq("OK"))));
+```
+
+### Partial Argument Matching With Wildcards
+
+When only some arguments matter:
+
+```cpp
+using ::testing::_;
+
+EXPECT_CALL(mock, Func(42, _));  // Match second argument with anything.
+EXPECT_CALL(mock, Func(_, StartsWith("prefix")));
+```
+
+---
+
+## Best Practices for Using Matchers
+
+- Use `_` (wildcard) for arguments you don't care about to keep tests flexible.
+- Combine matchers meaningfully using `AllOf` or `AnyOf` to express complex conditions.
+- Use container matchers like `ElementsAre` and `UnorderedElementsAre` to verify container contents.
+- Leverage string matchers for substring, prefix, and suffix checks instead of exact equality to reduce test brittleness.
+- Match pointer arguments with `Pointee`, `IsNull`, or `NotNull` for clarity.
+- When testing containers of pairs (such as maps), use `Pair` and `Key` matchers for more expressive matching.
+- Prefer `EXPECT_THAT` over raw `EXPECT_TRUE` for more readable and informative test assertions.
+
+---
+
+## Common Pitfalls
+
+- **Over-specifying arguments:** Avoid matching all arguments strictly if only a few are relevant. Overly strict matchers cause fragile, brittle tests.
+
+- **Using `_` in overloaded methods:** Omit argument lists only for non-overloaded methods.
+
+- **Confusing equality matchers for pointers:** Use `StrEq` for C-string content comparison rather than `Eq` which compares pointer addresses.
+
+- **Forgetting parentheses for types with commas:** When mocking methods with argument or return types containing commas (e.g., `std::pair<int, int>`), wrap the type with parentheses.
+
+- **Ignoring default behavior:** Remember matchers work in tandem with default actions and expectations; use `ON_CALL` to specify default behavior.
+
+---
+
+## Summary
+
+Built-in matchers in GoogleMock are a robust, expressive toolkit designed to make your tests clear, precise, and resilient. Whether you are matching simple values or complex containers, pointers, or strings, the built-in matchers cover nearly every use case you are likely to encounter.
+
+For advanced matching scenarios, you can extend GoogleMock with custom matchers as described in [Writing Custom Matchers](../api-reference/matchers-and-advanced-assertions/writing-custom-matchers).
+
+---
+
+## Additional Resources
+
+- [Matchers Reference](../api-reference/matchers-and-advanced-assertions/using-matchers) — Full documentation on available matchers.
+- [gMock Cookbook - Using Matchers](https://google.github.io/googletest/gmock_cook_book.html#UsingMatchers) — Practical recipes and tips.
+- [Assertions Reference](../api-reference/googletest-core-apis/assertions-and-expectations) — Integration of matchers with assertions.
+- [Matchers in gMock Source Code](https://github.com/google/googletest/blob/main/googlemock/include/gmock/gmock-matchers.h) — Look under the hood.
+
+---
+
+## Related Documentation
+
+- [Creating and Using Mock Objects](../guides/mocking-patterns/creating-mocks)
+- [Setting Expectations and Actions](../guides/mocking-patterns/setting-expectations-actions)
+- [Best Practices for Mocking](../guides/mocking-patterns/best-practices-mocking)
+
+---
+
+<Info>
+Tip: To write even clearer tests, pair matchers with expressive assertion macros like `EXPECT_THAT()`, which provide detailed failure messages helping you rapidly diagnose issues.
+</Info>
+
+---
+
+### Example: Putting It All Together
+
+```cpp
+#include <gmock/gmock.h>
+using ::testing::_;           // Wildcard matcher
+using ::testing::ElementsAre;
+using ::testing::Gt;
+using ::testing::Return;
+using ::testing::Pointee;
+
+class MockFoo {
+ public:
+  MOCK_METHOD(void, ProcessNumbers, (const std::vector<int>&), ());
+  MOCK_METHOD(int, GetValue, (), ());
+  MOCK_METHOD(bool, OperateOnPtr, (int*), ());
+};
+
+TEST(FooTest, MatcherUse) {
+  MockFoo mock;
+
+  // Expect ProcessNumbers to be called with exactly 3 elements: 1, >5, and anything
+  EXPECT_CALL(mock, ProcessNumbers(ElementsAre(1, Gt(5), _)));
+
+  // Expect GetValue to be called and return 42
+  EXPECT_CALL(mock, GetValue()).WillOnce(Return(42));
+
+  // Expect OperateOnPtr to be called with a pointer to 100
+  EXPECT_CALL(mock, OperateOnPtr(Pointee(100)));
+
+  // Exercise
+  mock.ProcessNumbers({1, 10, 3});
+  EXPECT_EQ(mock.GetValue(), 42);
+  int value = 100;
+  mock.OperateOnPtr(&value);
+}
+```
+
+This test demonstrates matching container contents, controlling return values, and matching pointer arguments with built-in matchers.
