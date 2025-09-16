@@ -1,0 +1,185 @@
+---
+title: "Test Performance Optimization"
+description: "Tips, best practices, and answers to user questions about speeding up test execution, reducing flakiness, and making the most of build and execution settings to accelerate your development cycle."
+---
+
+# Test Performance Optimization
+
+Optimize your GoogleTest suite execution with practical strategies to speed up your tests, reduce flakiness, and maximize your build and test execution settings. Whether you are running a small project or scaling up to thousands of tests, the tips and best practices here will help streamline your development cycle.
+
+---
+
+## 1. Why Optimize Test Performance?
+
+Fast and reliable tests empower you to iterate quickly, catch bugs early, and maintain confidence in your code. Long or flaky tests hinder productivity and slow down feedback loops, causing frustration and increasing development costs.
+
+Optimizing test performance is about:
+
+- Reducing total test runtime.
+- Minimizing intermittent test failures (flakiness).
+- Leveraging configuration settings efficiently.
+- Balancing resource usage for parallelism and isolation.
+
+---
+
+## 2. Common Techniques for Speeding Up Tests
+
+### 2.1. Use Test Fixtures Wisely
+
+GoogleTest creates a fresh test fixture instance for each test to ensure isolation. However, expensive setup and teardown in fixtures can slow tests dramatically.
+
+**Best Practice:**
+
+- Use `SetUpTestSuite()` and `TearDownTestSuite()` for shared per-suite resource initialization instead of per-test setup.
+- Keep per-test setup (`SetUp()`) light to avoid redundant cost.
+
+### 2.2. Filter and Run Relevant Tests
+
+Use filters (`--gtest_filter`) to run only the subset of tests relevant to your current focus. This reduces unnecessary test execution during development.
+
+### 2.3. Parallelize Test Runs
+
+Although GoogleTest itself does not run tests in parallel internally, your build system or test runner can invoke multiple instances in parallel or shard tests.
+
+- Use [gtest-parallel](https://github.com/google/gtest-parallel) or other runners compatible with GoogleTest.
+- Use environment variables `GTEST_TOTAL_SHARDS` and `GTEST_SHARD_INDEX` to split tests into shards and run them across multiple machines or containers.
+
+### 2.4. Shuffle Tests to Detect Interdependencies
+
+Enable `--gtest_shuffle` to randomize test execution order. This helps uncover hidden dependencies that cause flakiness, ensuring test independence.
+
+### 2.5. Repeat Tests to Identify Flakiness
+
+Use `--gtest_repeat=N` to run tests multiple times and catch flaky tests that pass or fail nondeterministically.
+
+---
+
+## 3. Reducing Test Flakiness
+
+### What Causes Flakiness?
+
+- Shared mutable global or static state between tests.
+- Tests depending on external resources or timing-sensitive operations.
+- Race conditions in multi-threaded tests.
+- Improper cleanup of resources in test fixtures.
+
+### How to Combat Flakiness
+
+- Isolate tests with fresh fixtures.
+- Use `SCOPED_TRACE` to trace intermittent failures.
+- Replace flaky tests with stronger assertions or mocks.
+- Use `GTEST_SKIP()` to bypass tests that depend on unavailable or unreliable resources dynamically.
+
+---
+
+## 4. Leveraging GoogleTest Flags and Settings
+
+GoogleTest provides several runtime flags that help optimize test runs.
+
+| Flag                     | Description                                    | Recommendation                     |
+|--------------------------|------------------------------------------------|----------------------------------|
+| `--gtest_filter`         | Run a subset of tests by name pattern          | Use during development to test specific parts |
+| `--gtest_repeat`         | Repeat tests multiple times                     | Use to catch flaky tests |
+| `--gtest_shuffle`        | Shuffle test execution order                    | Helps detect test order dependencies |
+| `--gtest_random_seed`    | Specify random seed for shuffling              | Use to reproduce test order |
+| `--gtest_fail_fast`      | Stop at first failure                           | Speeds up debugging by halting early |
+| `--gtest_also_run_disabled_tests` | Include disabled tests when running       | Occasionally needed to run temporarily disabled tests |
+| `--gtest_break_on_failure`| Break inside a debugger on failure             | Useful when debugging slow failures |
+
+### Tips
+
+- Always call `testing::InitGoogleTest()` before `RUN_ALL_TESTS()` to enable flag parsing.
+- Use environment variables `GTEST_*` as an alternative way to set flags in CI environments.
+
+---
+
+## 5. Test Fixture Resource Management
+
+Sharing expensive resources can dramatically improve test speed but risks test interdependency.
+
+### How to Share Resources Safely
+
+- Declare shared members as `static` in the fixture class.
+- Initialize resources in `static void SetUpTestSuite()`.
+- Clean up resources in `static void TearDownTestSuite()`.
+- Avoid modifying shared resources during individual tests, or reset state between tests.
+
+Example:
+
+```cpp
+class DatabaseTest : public testing::Test {
+protected:
+  static void SetUpTestSuite() {
+    db_ = Database::Connect("connection_string");
+  }
+
+  static void TearDownTestSuite() {
+    db_.Reset();
+  }
+
+  void SetUp() override {
+    // Use db_ but do not alter shared state
+  }
+
+  static std::unique_ptr<Database> db_;
+};
+
+std::unique_ptr<Database> DatabaseTest::db_ = nullptr;
+```
+
+---
+
+## 6. Best Practices Summary
+
+- **Isolate tests** to prevent hidden dependencies.
+- **Keep fixtures lightweight** for per-test setup.
+- **Use sharding and parallel runners** to spread workload.
+- **Repeat and shuffle tests** to identify flakiness.
+- **Leverage GoogleTest flags** effectively for targeted runs.
+- **Monitor test output timing** to spot slow tests.
+
+---
+
+## 7. Troubleshooting Common Performance Issues
+
+<AccordionGroup title="Performance Troubleshooting">
+<Accordion title="Why are my tests slow despite sharding?">
+Increased overhead from setup or teardown in each test can dominate runtime. Check for expensive per-test setup and try moving it to suite-level setup.
+</Accordion>
+<Accordion title="Tests fail only when run together but pass individually">
+This usually indicates shared state or dependencies between tests. Use `--gtest_shuffle` and `--gtest_repeat` to isolate. Refactor tests to be self-contained.
+</Accordion>
+<Accordion title="Parallel test failures or unstable results">
+Race conditions or global resource sharing can cause this. Use synchronization primitives inside your code under test or mocks. Avoid static mutable state.
+</Accordion>
+<Accordion title="Slow XML or JSON output generation">
+Generating reports for large test suites can add overhead. Check output flags and consider disabling XML/JSON output during rapid iterations.
+</Accordion>
+</AccordionGroup>
+
+---
+
+## 8. Additional Resources
+
+- [GoogleTest Primer](https://google.github.io/googletest/primer.html): Basics of writing tests.
+- [Advanced GoogleTest Topics](advanced.md): Deeper understanding of test setups and assertions.
+- [Command Line Flags Reference](../advanced.md#running-test-programs-advanced-options): Full list of GoogleTest runtime flags.
+- [Test Discovery & Execution Flow](concepts/core-architecture/test-discovery-execution.md): How GoogleTest finds and runs tests.
+- [Global Set-Up and Tear-Down](advanced.md#global-set-up-and-tear-down): Managing environments for tests.
+- [gtest-parallel](https://github.com/google/gtest-parallel): Run your tests in parallel for speed.
+
+For hands-on examples, see the [GoogleTest Samples](docs/samples.md) directory in the repository.
+
+---
+
+## 9. Getting Help & Support
+
+If you run into issues or need assistance:
+
+- Check the [Getting Started & Troubleshooting FAQ](../faq/basics-and-troubleshooting/setup-troubleshooting.md).
+- Visit the GoogleTest community forums and issue tracker on GitHub.
+- Review the detailed [Troubleshooting Common Test Failures FAQ](../faq/basics-and-troubleshooting/common-test-failures.md).
+
+Always include your environment details, command-line flags used, and minimal test examples if requesting support.
+
+---
