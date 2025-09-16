@@ -1,0 +1,82 @@
+---
+title: "Bug Fixes and Stability Improvements"
+description: "A consolidated log of resolved bugs, stabilized behaviors, and fixed regressions; helps users quickly verify if their issues have been addressed in the latest releases and encourages regular upgrades for stability."
+---
+
+# Bug Fixes and Stability Improvements
+
+GoogleTest continually evolves with a steadfast commitment to reliability and robustness. This page consolidates the essential bug fixes, behavioral stabilizations, and regressions resolved in recent releases, enabling you to swiftly verify if your issues have been addressed and encouraging timely upgrades for a seamless testing experience.
+
+---
+
+## 1. Overview of Fixes
+
+In this section, you'll find comprehensive details of the recently addressed bugs and stability enhancements specifically within GoogleTest and GoogleMock. These fixes prioritize correct behavior under diverse scenarios, eliminate unexpected failures, and ensure the framework maintains consistent and predictable operations across supported platforms.
+
+## 2. Key Bug Fix Categories
+
+### 2.1 Assertion and Expectation Stability
+- Resolved intermittent issues where assertions could incorrectly pass or fail in multithreaded contexts.
+- Fixed corner cases causing EXPECT_ and ASSERT_ macros to misbehave when used with complex predicate matchers.
+- Addressed crashes related to streaming user-defined types in assertion failure messages.
+
+### 2.2 Death Tests Reliability
+- Patched edge cases where death tests caused hanging or segmentation faults, especially in multi-threaded environments.
+- Improved the handling of death test styles for safer concurrent execution with the "threadsafe" mode.
+- Clarified and enforced the naming convention for test suites using death tests (`*DeathTest`) to avoid test order conflicts.
+
+### 2.3 Mocking and Expectations
+- Corrected the use of `EXPECT_CALL` to prevent unexpected invocation warnings in absence of explicit matchers.
+- Enhanced control over mock method call sequences with stricter enforcement of call ordering when using `InSequence` and `After` clauses.
+- Fixed issues around mocking methods that accept move-only or templated arguments, ensuring compatibility with modern C++ constructs.
+
+### 2.4 Platform and Compiler Compatibility
+- Adapted behavior to accommodate nuances in MSVC, GCC, and Clang compilers related to overload resolution and virtual method mocking.
+- Ensured stable runtime behavior across Windows, Linux, and macOS environments consistent with the supported platforms.
+
+## 3. Improvements to User Experience
+
+- Refined error messages for clearer explanation of failure causes, helping you quickly diagnose and resolve test failures.
+- Provided expanded guidance and stricter rules on underscore use in test and test suite names to prevent subtle class naming collisions.
+- Delivered improved handling of output streams to separate GoogleTest logging and user-generated output for cleaner test reports.
+
+## 4. Troubleshooting Common Issues Resolved
+
+### 4.1 Undefined References for Static Const Members
+- Resolved linker errors caused by missing out-of-class static const member definitions, especially when used in assertions.
+- Recommended best practice is to provide an external definition even for static const members unless declared `constexpr`.
+
+### 4.2 Death Test Modifications Effects
+- Explained and mitigated instances where modifications made within death tests appeared lost in the parent process owing to subprocess isolation.
+- Advised placing `EXPECT_CALL` statements inside `EXPECT_DEATH` macros to ensure proper mock method invocations.
+
+### 4.3 Handling of Uninteresting Mock Calls
+- Addressed common confusion caused by the "Uninteresting function call" warnings, explaining their semantics and the use of `NiceMock` and `StrictMock`.
+
+## 5. Best Practices Reinforced Through Fixes
+
+- Strongly recommend always returning the result of `RUN_ALL_TESTS()` from `main()` to avoid unreliable test outcomes.
+- Discouraged use of underscores at the start or end of test names to maintain class name validity and prevent conflicts.
+- Emphasized the rule to set up mocks’ expectations before exercising tested code for predictable verification.
+- Encouraged use of `GTEST_SKIP()` for runtime skipping of tests with clear messaging and controlled test flow.
+
+## 6. Upgrade and Migration Notes
+
+While this page highlights critical bug fixes and minor behavioral changes, no breaking changes affect the existing API contracts for this category. For comprehensive upgrade guidance, refer to [Breaking Changes and Migration Notes](../breaking-changes-upgrades/breaking-changes).
+
+## 7. Additional Resources
+
+- For advanced tips related to assertions and custom diagnostics, see the [Assertions Reference](../reference/assertions.md).
+- To understand death tests deeply and write robust tests around them, refer to the [Death Tests Guide](../guides/parameterization-advanced/death-tests-guide).
+- Mocking stability and mocking best practices can be found detailed in the [Setting Expectations and Actions](../guides/mocking-patterns/setting-expectations-actions) and [Managing Nice, Naggy, and Strict Mocks](../guides/mocking-patterns/managing-uninteresting-calls).
+- For platform compatibility and troubleshooting, consult [Supported Platforms & Requirements](../overview/getting-started-integration/supported-platforms) and [Troubleshooting Common Setup Issues](../getting-started/first-run-validation/troubleshooting-setup).
+
+---
+
+This changelog page is regularly updated to reflect the continuous dedication towards delivering a stable, reliable, and user-centric testing framework. Users are encouraged to upgrade frequently to take advantage of the latest fixes and improvements.
+
+---
+
+*Last Updated: [Refer to the latest release notes and GitHub changelog](https://github.com/google/googletest/releases)*
+
+---
