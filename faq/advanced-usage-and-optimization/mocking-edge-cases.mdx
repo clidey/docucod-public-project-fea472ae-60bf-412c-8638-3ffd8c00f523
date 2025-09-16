@@ -1,0 +1,227 @@
+---
+title: "Advanced Mocking & Edge Cases"
+description: "Resolves questions around nuanced use of GoogleMock features—such as complex matchers, call expectations, cardinalities, and strictness controls—to help users avoid pitfalls and write robust tests."
+---
+
+# Advanced Mocking & Edge Cases FAQ
+
+This page addresses intricate questions involving GoogleMock’s advanced mocking features, including complex matchers, call expectations, cardinalities, and strictness controls. It guides you to write precise, maintainable tests while avoiding common pitfalls associated with nuanced use.
+
+---
+
+## 1. Frequently Asked Questions
+
+### What are complex matchers and how can I use them effectively?
+Complex matchers allow verification of argument values with fine-grained precision beyond simple equality. Examples include combining predicates, matching container contents, or applying multi-argument predicates.
+
+**Usage Example:**
+```cpp
+EXPECT_CALL(mock, Foo(AllOf(Ge(5), Lt(10))));  // Argument must be in [5,10)
+EXPECT_CALL(mock, Bar(ElementsAre(1, _, Gt(2))));  // Matches container with these properties
+EXPECT_CALL(mock, Baz(_, _)).With(Lt());  // First argument less than second
+```
+Use built-in matchers (`_`, `Ge`, `Lt`, `ElementsAre`, `AllOf`) or create custom matchers for domain-specific validation. Avoid over-specifying to keep tests resilient.
+
+### How do I specify how many times a mock function is expected to be called?
+Cardinalities control the allowed number of invocations. Use the `Times()` clause with built-in options:
+- `Exactly(n)` or `n`: exactly n times
+- `AtLeast(n)`: at least n times
+- `AtMost(n)`: at most n times
+- `Between(m, n)`: between m and n times
+- `AnyNumber()`: no limit
+
+If omitted, gMock infers the cardinality based on the action clauses (`WillOnce` and `WillRepeatedly`).
+
+### How can I enforce call ordering or partial ordering among mock expectations?
+By default, expectations are matched in any order. To enforce order:
+
+- Use `InSequence` object to enforce a strict total order:
+```cpp
+{
+  InSequence s;
+  EXPECT_CALL(mock, A());
+  EXPECT_CALL(mock, B());
+}
+```
+
+- Use `.After()` clause to enforce calls happen after others, allowing a DAG partial order.
+
+- Use `.InSequence()` with multiple `Sequence` objects to specify complex partial orders.
+
+### What is the difference between `ON_CALL` and `EXPECT_CALL`?
+- `ON_CALL` sets default **behaviors** for mock methods without enforcing call expectations.
+- `EXPECT_CALL` sets both the **behaviors** and **expectations** that calls with matching arguments **must** occur.
+
+Use `ON_CALL` for setting default stub behavior and `EXPECT_CALL` when you want to verify the interaction in tests. Overusing `EXPECT_CALL` risks brittle tests.
+
+### How do I control uninteresting calls and warnings for unexpected or unwanted method calls?
+GoogleMock defines three strictness wrappers:
+
+- `NiceMock<T>`: suppresses warnings for uninteresting calls.
+- `NaggyMock<T>` (default): warns on uninteresting calls.
+- `StrictMock<T>`: treats uninteresting calls as test failures.
+
+Choose based on your test strategy:
+- Use `NiceMock` for less noisy output and loose verification.
+- Use `NaggyMock` to get warnings but not failures.
+- Use `StrictMock` when you want strict enforcement of all calls.
+
+Example:
+```cpp
+NiceMock<MockFoo> nice_mock;
+StrictMock<MockFoo> strict_mock;
+```
+
+### What should I do if my mock method is called but no matching expectation is found?
+This is an **unexpected call** and always results in a test failure as it violates the contract...
+
+Possible reasons:
+- Arguments don't match any expectation.
+- The call exceeds the allowed number of times.
+
+To debug:
+- Run test with `--gmock_verbose=info` to see detailed call and matching traces.
+- Verify argument matchers correctly reflect expected inputs.
+- Add catch-all expectations if certain calls are allowed but uninteresting:
+```cpp
+EXPECT_CALL(mock, Method(_)).Times(AnyNumber());
+```
+
+### How do I mock methods overloaded by constness or argument types?
+Use `Const()` wrapper to disambiguate const vs non-const methods:
+```cpp
+EXPECT_CALL(Const(mock), Method()).WillOnce(Return(value));  // Const overload
+EXPECT_CALL(mock, Method()).WillOnce(Return(value));         // Non-const overload
+```
+Use explicit typed matchers (`TypedEq<T>`, `An<T>()`, `SafeMatcherCast<T>()`) to disambiguate overloaded methods with same argument count but different types.
+
+### Can I mock move-only types such as `std::unique_ptr`?
+Yes. Use modern `MOCK_METHOD` macros normally:
+```cpp
+MOCK_METHOD(std::unique_ptr<Buzz>, MakeBuzz, (StringPiece), (override));
+```
+
+To specify actions, return new unique pointers inside lambdas or callables, not with `Return(std::move(...))` repeatedly.
+
+Legacy workaround involves delegating to mock methods taking raw pointers instead.
+
+### How can I verify that a mock object's expectations are met before it is destructed?
+Use the static method:
+```cpp
+Mock::VerifyAndClearExpectations(&mock_obj);
+```
+This forces verification early.
+
+You should not set new expectations after calling it on a mock that has been exercised.
+
+### How can I retire expectations once they are saturated?
+Use `.RetiresOnSaturation()` on expectations with upper bounded cardinalities to deactivate them after they have been invoked the specified number of times.
+
+Example:
+```cpp
+EXPECT_CALL(mock, Foo(7))
+    .Times(2)
+    .RetiresOnSaturation();
+```
+This allows later calls with the same arguments to match other expectations.
+
+### How do I handle interactions with mock calls that happen asynchronously or across multiple threads?
+- Run test code (setting expectations) in a single thread.
+- gMock supports calls to mocks from multiple threads and will synchronize internally.
+- Actions are executed in the thread where the mock method is called.
+
+Use synchronization primitives and notifications in your test to coordinate.
+
+### What does "sticky expectations" mean?
+By default, expectations remain active even after their upper call limit is reached, which may cause failures on further calls.
+Use `.RetiresOnSaturation()` or sequences to retire expectations automatically.
+
+---
+
+## 2. Common Issues & Tips
+
+### Warning "Uninteresting function call encountered - default action taken..."
+Usually harmless; means a mock method was called but no expectation was set — it uses default behavior.
+If unexpected, consider adding an `EXPECT_CALL(...).Times(0)` or switch to `NiceMock` to suppress warnings.
+
+### Error: "Mock function called more times than expected"
+Indicates that `EXPECT_CALL` was set with a strict upper bound cardinality and the method was called too often. Check your `Times()` settings and `.RetiresOnSaturation()` if needed.
+
+### Compiler warnings related to `const` qualifiers in mock methods
+MSVC sometimes warns when overriding methods whose parameters differ by a `const` qualifier because top-level const on parameters is ignored by C++. Remove the `const` qualifier on such parameters in both interface and mock for MSVC if warnings appear.
+
+### How to define mocks for overloaded methods with different qualifiers?
+Use `using Base::Method;` to bring in unmocked overloads to avoid hiding them. Use `Const()` wrapper and typed matchers to resolve ambiguities with constness or argument types.
+
+### Slow compilation due to large or many mocks
+Move constructors and destructors of your mock classes out of header files into `.cc` files to reduce compilation overhead.
+
+### How to mock destructor calls?
+Mock destructors indirectly by adding a mock method (e.g. `Die()`) and calling it in the destructor. Expect the call on that method to verify destruction timing.
+
+### When should I use `ON_CALL` vs `EXPECT_CALL`?
+Default to `ON_CALL` to set behaviors without enforcing calls, improving test flexibility and maintenance. Use `EXPECT_CALL` when the test should enforce that a call occurs with specific arguments.
+
+---
+
+## 3. Troubleshooting & Debugging
+
+- Use `--gmock_verbose=info` to get call traces, matched expectations, and stack traces, revealing why expectations do or do not match.
+- Look for "excessive calls" or "unexpected calls" in failure logs.
+- Add catch-all expectations with `EXPECT_CALL(mock, Method(_)).Times(AnyNumber())` to allow uninteresting calls explicitly.
+- Use `Mock::AllowLeak(&mock)` if a mock remains allocated beyond test scope intentionally.
+
+---
+
+## 4. Practical Tips & Best Practices
+
+- Set expectations *before* any calls to the mock method occur.
+- Avoid over-specification: match only on arguments relevant to your test.
+- Use `NiceMock` during development to reduce noise, switch to `StrictMock` when you want to catch unexpected calls.
+- Use `.RetiresOnSaturation()` to prevent sticky expectation failures.
+- Prefer delegating some mock calls to real or fake implementations to reuse logic.
+- Take advantage of `InSequence` and `.After()` to express call ordering clearly.
+
+---
+
+## 5. Related Topics
+
+- [GoogleMock Cheat Sheet](https://github.com/google/googletest/blob/main/docs/gmock_cheat_sheet.md) — summary of macros and usage examples.
+- [Mocking Reference](https://github.com/google/googletest/blob/main/docs/reference/mocking.md) — detailed API documentation.
+- [Managing Nice, Naggy, and Strict Mocks](https://github.com/google/googletest/blob/main/guides/mocking-patterns/managing-uninteresting-calls.md) — deeper dive on strictness modifiers.
+- [gMock Cookbook](https://github.com/google/googletest/blob/main/docs/gmock_cook_book.md) — recipes and patterns for advanced usage.
+
+---
+
+## 6. Example: Using Complex Expectations with Strictness Controls
+
+```cpp
+using ::testing::_;
+using ::testing::InSequence;
+using ::testing::Return;
+
+StrictMock<MockFoo> strict_mock;
+{
+  InSequence s;
+  EXPECT_CALL(strict_mock, MethodA(Ge(5)))
+      .Times(2)
+      .WillOnce(Return(10))
+      .WillOnce(Return(20))
+      .RetiresOnSaturation();
+  EXPECT_CALL(strict_mock, MethodB(_))
+      .Times(AnyNumber());
+}
+
+strict_mock.MethodA(6);
+strict_mock.MethodA(7);
+strict_mock.MethodB(42);
+```
+
+In this example:
+- Calls to `MethodA` must be >= 5, exactly twice, in order.
+- After two calls, `MethodA` expectation retires.
+- `MethodB` can be called arbitrarily, tolerated by strict mock.
+
+This combined usage leverages matchers, cardinality, ordering, and strictness.
+
+---
