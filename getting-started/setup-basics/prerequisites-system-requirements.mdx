@@ -1,0 +1,134 @@
+---
+title: "Prerequisites & System Requirements"
+description: "Outlines the minimum compiler, language standard (C++17+), and supported platform requirements for successfully installing and running GoogleTest and GoogleMock. This page helps users verify that their system meets foundational needs before installation."
+---
+
+# Prerequisites & System Requirements
+
+This page outlines the foundational compiler, language standard, and platform requirements necessary to successfully install and run **GoogleTest** and **GoogleMock**. Ensuring your system meets these prerequisites is critical for a smooth setup and reliable testing experience.
+
+---
+
+## 1. C++ Language Standard
+
+- **Minimum Required Standard:** C++17 (ISO/IEC 14882:2017) or later.
+- GoogleTest version 1.17.0 and newer require at least C++17 support in your compiler.
+
+<Tip>
+Make sure your compiler is set to use C++17 or later by specifying the appropriate compiler flags, such as `-std=c++17` for GCC and Clang or `/std:c++17` for MSVC.
+</Tip>
+
+## 2. Supported Compilers
+
+GoogleTest supports a variety of modern C++ compilers that fully implement C++17 or newer. Confirm your compiler version and compatibility:
+
+- **GCC** (GNU Compiler Collection): Version supporting C++17 (e.g., GCC 7+).
+- **Clang/LLVM:** Version supporting C++17.
+- **Microsoft Visual C++ (MSVC):** Visual Studio 2017 Update 3 or later.
+- Other compilers are supported as per Google's foundational C++ support policy.
+
+See the [Supported Platforms & Requirements](../overview/getting-started-integration/supported-platforms.md) page for detailed compiler version matrices.
+
+## 3. Supported Platforms
+
+GoogleTest is cross-platform and runs on most major operating systems with C++17-capable toolchains:
+
+- **Linux** distributions
+- **macOS** (including iOS for test code compatibility)
+- **Windows** desktop and MinGW
+
+The foundational C++ support policy defines platforms and build tools compatible with GoogleTest, accessible here:
+
+- [Foundational C++ Support Policy](https://opensource.google/documentation/policies/cplusplus-support)
+- [Supported compiler and platform matrix](https://github.com/google/oss-policies-info/blob/main/foundational-cxx-support-matrix.md)
+
+## 4. Build Tool Requirements
+
+- Use build systems compatible with C++17 and your chosen platform.
+- GoogleTest includes CMake support; CMake version 3.14 or newer is required for using the `FetchContent` module.
+- Compatible generators for CMake include Make, Ninja, Visual Studio, and Xcode.
+
+<Tip>
+If you plan to integrate GoogleTest into your existing project, confirm your build system supports adding dependencies on external projects or downloading source code during configuration.
+</Tip>
+
+## 5. System Environment
+
+- Ensure your system has sufficient memory and disk space to clone the GoogleTest repository and build the binaries.
+- For Windows, be aware of runtime linkage and the `gtest_force_shared_crt` flag, which controls whether the C runtime is linked dynamically or statically. Align this setting with your project to avoid linker errors.
+
+## 6. Other Considerations
+
+- **Thread Safety:** GoogleTest is thread-safe on platforms with pthread support.
+- **File System:** A file system must be available for some GoogleTest features (e.g., death tests).
+
+## 7. Verifying Your Environment
+
+To verify your environment meets these requirements:
+
+1. Check your compiler version:
+   ```bash
+   gcc --version          # For GCC
+   clang --version        # For Clang
+   cl /?                  # For MSVC
+   ```
+2. Confirm C++17 support by compiling a simple test program with C++17 flags.
+3. Ensure CMake version is sufficient:
+   ```bash
+   cmake --version
+   ```
+4. Reference the supported platform matrix linked above for platform-specific constraints.
+
+## 8. Troubleshooting
+
+<AccordionGroup title="Common Issues and Solutions">
+<Accordion title="Compiler Does Not Support C++17">
+Verify the compiler version. Update to a newer compiler release.
+If unable to upgrade, you cannot use GoogleTest version 1.17.0 or later.
+
+Workaround: Use older GoogleTest versions compatible with your compiler, but note these may lack recent features and fixes.
+</Accordion>
+<Accordion title="Build Tool Version Too Low">
+Upgrade CMake to 3.14 or higher.
+Older versions do not support `FetchContent`, which is used by GoogleTest for integration.
+</Accordion>
+<Accordion title="Linker Errors on Windows Related to Runtime Libraries">
+Set the CMake option `gtest_force_shared_crt` to ON if your project uses dynamic C runtime linkage.
+
+Example:
+```cmake
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+```
+</Accordion>
+</AccordionGroup>
+
+---
+
+For detailed platform compatibility and advanced configuration, consult the [Supported Platforms](../overview/getting-started-integration/supported-platforms.md) and [Building with CMake Quickstart](../docs/quickstart-cmake.md) guides.
+
+
+---
+
+## Summary
+
+This page equips you with the necessary knowledge to assess whether your development environment meets the minimal requirements for installing and running GoogleTest and GoogleMock. It covers the required compiler versions, C++17 language standard, supported platforms, build tools, and common environmental considerations to avoid setup pitfalls.
+
+
+---
+
+#### Related Documentation
+- [Supported Platforms & Requirements](../overview/getting-started-integration/supported-platforms.md)
+- [Quickstart: Building with CMake](../docs/quickstart-cmake.md)
+- [GoogleTest README](../googletest/README.md)
+
+#### External References
+- [Foundational C++ Support Policy](https://opensource.google/documentation/policies/cplusplus-support)
+- [Supported compiler and platform matrix](https://github.com/google/oss-policies-info/blob/main/foundational-cxx-support-matrix.md)
+
+
+---
+
+## Next Steps
+- Proceed to the [Installation Guide](../getting-started/setup-basics/installation-guide.md) after verifying prerequisites.
+- Review the [GoogleTest Primer](../docs/primer.md) to learn how to write your first tests.
+- Use the [Quickstart: Building with CMake](../docs/quickstart-cmake.md) to set up a sample project.
