@@ -1,0 +1,234 @@
+---
+title: "Upgrade Guides"
+description: "Step-by-step guides outlining how to safely upgrade from older versions to the latest, including code migration examples and links to broader documentation. Mitigates common pain points and streamlines the upgrade process for teams of all sizes."
+---
+
+# Upgrade Guides
+
+Welcome to the Upgrade Guides for GoogleTest. This page offers clear, step-by-step instructions to help you safely transition your existing codebases from older GoogleTest versions to the latest release. With actionable migration tips, code examples, and links to related documentation, these guides empower your team to upgrade efficiently while minimizing disruptions.
+
+---
+
+## 1. Overview of Upgrade Process
+
+Upgrading GoogleTest can involve changes spanning the framework’s API, internal test behaviors, and build system integrations. This page focuses on guiding you through these changes from a user’s perspective, emphasizing what you need to modify to keep your test suites running smoothly.
+
+Key intents behind these guides are to:
+
+- Highlight breaking changes that require adaptation.
+- Provide clear migration instructions with practical code snippets.
+- Point to other documentation for deeper understanding.
+- Mitigate common upgrade pain points encountered by users.
+
+Use this guide as your central resource when planning an upgrade to a newer GoogleTest version.
+
+---
+
+## 2. Preparing for the Upgrade
+
+Before attempting the upgrade:
+
+- **Verify Environment Compatibility:**
+  GoogleTest 1.17.x and later require at least C++17 support in your compiler.
+  See [Supported Platforms & Requirements](/overview/getting-started-integration/supported-platforms) for details.
+
+- **Backup Your Test Code:**
+  Always back up your existing test suites to guard against regressions.
+
+- **Review Release Notes:**
+  Consult the [Version History & Major Releases](/changelog/release-highlights/version-history) for a high-level understanding of new features and changes.
+
+- **Test Existing Builds:**
+  Run your current test suites with the existing GoogleTest version to ensure baseline stability before upgrading.
+
+---
+
+## 3. Handling Breaking Changes and Code Migration
+
+GoogleTest occasionally introduces breaking changes to improve usability, correctness, or maintainability. Here’s how to manage the key breaking changes:
+
+### 3.1 Transition to C++17 Minimum Standard
+
+*What changed:*
+GoogleTest now requires C++17 or higher, enabling use of modern language features for tests.
+
+*Migration steps:*
+
+- Update your compiler flags to enable C++17 (e.g., `-std=c++17` for GCC/Clang or equivalent for MSVC).
+- Verify that your build system supports C++17.
+- Check for any use of deprecated language features incompatible with C++17.
+
+### 3.2 Legacy Mocking API Deprecated
+
+*What changed:*
+Older macros like `MOCK_METHODn` are deprecated in favor of the unified `MOCK_METHOD` macro with enhanced qualifier support.
+
+*Migration steps:*
+
+- Replace all `MOCK_METHODn` usages with `MOCK_METHOD`.
+
+Example:
+
+```cpp
+// Old style:
+MOCK_METHOD2(Foo, int(int, int));
+
+// New style:
+MOCK_METHOD(int, Foo, (int, int), ());
+```
+
+- Apply qualifiers like `const` or `override` directly in the fourth parameter:
+
+```cpp
+MOCK_METHOD(void, Bar, (), (const, override));
+```
+
+- Review the [Mock Class Definition guide](/api-reference/googlemock-mocking-apis/mock-class-definition) for detailed syntax.
+
+### 3.3 TestCase to TestSuite Renaming
+
+*What changed:*
+GoogleTest has standardized on the term "TestSuite" in its APIs and documentation, replacing the older "TestCase" references.
+
+*Migration steps:*
+
+- Update code using `TestCase` to `TestSuite` accordingly.
+- The legacy API remains available but will be removed in future releases.
+
+This shift improves clarity and aligns terminology with common industry standards.
+
+### 3.4 New Event Listener API Usage
+
+*What changed:*
+Certain internal listener classes have updated interfaces.
+
+*Migration steps:*
+
+- When implementing custom event listeners, derive from `testing::TestEventListener` or `testing::EmptyTestEventListener`.
+- Override only the required event methods.
+- Replace deprecated listener registration with the current API.
+
+Consult [Extending GoogleTest by Handling Test Events](/docs/advanced.md#extending-googletest-by-handling-test-events) for guidance.
+
+### 3.5 Modern Assertion Enhancements
+
+*What changed:*
+New assertion macros and helper functions provide better diagnostics and improved usability.
+
+*Migration steps:*
+
+- Migrate from handwritten boolean checks to using richer GoogleTest assertions like `EXPECT_PRED_FORMAT*`.
+- Use scoped traces (`SCOPED_TRACE`) to improve error reports.
+- Employ predicate assertions returning `AssertionResult` for complex validations.
+
+Refer to the [Assertions Reference](/api-reference/googletest-core-apis/assertions-and-expectations) and [Advanced GoogleTest Topics](/docs/advanced.md#more-assertions) for examples.
+
+---
+
+## 4. Sample Upgrade Code Snippets
+
+To illustrate, here are practical snippets showing common upgrade scenarios:
+
+### 4.1 Migrating Mock Methods
+
+**Before:**
+```cpp
+class MyMock : public MyInterface {
+ public:
+  MOCK_METHOD0(GetValue, int());
+  MOCK_METHOD1(SetValue, void(int));
+};
+```
+
+**After:**
+```cpp
+class MyMock : public MyInterface {
+ public:
+  MOCK_METHOD(int, GetValue, (), (override));
+  MOCK_METHOD(void, SetValue, (int), (override));
+};
+```
+
+### 4.2 Using the New Scoped Trace
+
+```cpp
+TEST(FooTest, BarTest) {
+  SCOPED_TRACE("Checking Bar behavior with empty input");
+  EXPECT_TRUE(ProcessBar(""));
+}
+```
+
+### 4.3 Registering Tests Dynamically
+
+Use `testing::RegisterTest` with factory functions instead of deprecated macros.
+
+```cpp
+// Register tests before RUN_ALL_TESTS().
+void RegisterCustomTests() {
+  testing::RegisterTest("MyTestSuite", "DynamicTest", nullptr, nullptr,
+                        __FILE__, __LINE__, []() -> testing::Test* {
+                          class CustomTest : public testing::Test {
+                           public:
+                            void TestBody() override {
+                              EXPECT_EQ(1, 1);
+                            }
+                          };
+                          return new CustomTest();
+                        });
+}
+
+int main(int argc, char** argv) {
+  testing::InitGoogleTest(&argc, argv);
+  RegisterCustomTests();
+  return RUN_ALL_TESTS();
+}
+```
+
+---
+
+## 5. Managing Deprecated Features
+
+Some features are deprecated and will be removed in future versions to improve code clarity and maintainability.
+
+- Avoid using legacy macros and APIs.
+- Replace deprecated mock macros like `MOCK_METHODn` with the modern `MOCK_METHOD`.
+- Adopt new test registration methods over older patterns.
+
+See the [Deprecation Notices](/changelog/breaking-changes-upgrades/deprecations) for complete details and timelines.
+
+---
+
+## 6. Common Pitfalls & Troubleshooting
+
+- **C++ Standard Compliance:** Ensure your compiler and build system support C++17 or later.
+- **Broken Tests After Upgrade:** Look for removed or changed API usages, especially in mock methods and event listeners.
+- **Flag Parsing Changes:** Flags recognized by `InitGoogleTest` may vary; verify test runner command-line behavior.
+- **Test Filtering:** Upgraded test filters using `--gtest_filter` should still work, but verify complex patterns.
+
+If you encounter build or runtime problems, consult the [Troubleshooting Common Setup Issues](/getting-started/first-run-validation/troubleshooting-setup) guide.
+
+---
+
+## 7. Useful Links and Next Steps
+
+- [Version History & Major Releases](/changelog/release-highlights/version-history)
+- [Deprecation Notices & Migration Timelines](/changelog/breaking-changes-upgrades/deprecations)
+- [Breaking Changes and Migration Notes](/changelog/breaking-changes-upgrades/breaking-changes)
+- [Mock Class Definition Guide](/api-reference/googlemock-mocking-apis/mock-class-definition)
+- [Advanced GoogleTest Topics](/docs/advanced.md)
+- [Assertions Reference](/api-reference/googletest-core-apis/assertions-and-expectations)
+- [Registering Tests Programmatically](/docs/advanced.md#registering-tests-programmatically)
+- [Supported Platforms & Requirements](/overview/getting-started-integration/supported-platforms)
+- [Writing Your First GoogleTest](/guides/core-workflows/writing-first-test)
+
+---
+
+Upgrading is an opportunity to improve your testing codebase's clarity, maintainability, and reliability. Follow these migration guides carefully, leverage the rich GoogleTest features, and continue delivering robust tests with confidence.
+
+<Tip>
+If you rely on older GoogleTest versions for legacy reasons, consider planning incremental upgrades rather than skipping multiple versions to reduce migration effort and risk.
+</Tip>
+
+<Warning>
+Always run your full test suite to catch subtle behavioral changes introduced by upgrades before deploying your new test framework version.
+</Warning>
