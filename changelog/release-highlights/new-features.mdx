@@ -1,0 +1,126 @@
+---
+title: "New Features and Improvements"
+description: "A focused look at newly introduced features, enhancements to existing functionality, and performance improvements across releases. Helps users leverage the latest capabilities and understand the value in upgrading."
+---
+
+# New Features and Improvements
+
+The following documentation presents a focused overview of the new features, enhancements, and performance improvements introduced across recent GoogleTest releases. Understanding these changes empowers you to take full advantage of the latest capabilities and optimize your testing workflows.
+
+---
+
+## Highlights of Recent Releases
+
+### Expanded Assertion Capabilities
+GoogleTest continues to enrich its assertion macros, offering flexibility and expressiveness to better match a wide variety of test scenarios:
+
+- **Explicit Success and Failure Assertions**: New macros allow signaling success (`SUCCEED()`) or generating failure (`FAIL()`) explicitly inside tests, enabling clearer intent in control flow.
+
+- **Exception Assertions**: Assertions like `EXPECT_THROW`, `ASSERT_NO_THROW`, and related macros enable precise testing of exception-throwing behavior in environments with exception support.
+
+- **Predicate Assertions**: To improve failure diagnostics on complex boolean expressions, GoogleTest introduces predicate assertion macros (`EXPECT_PRED*`, `ASSERT_PRED*`) along with predicate-formatters (`EXPECT_PRED_FORMAT*`) allowing granular control of error messages.
+
+- **Floating-Point Predicate Checks**: New predicate-format functions such as `FloatLE` and `DoubleLE` allow approximate floating-point comparisons through predicates, helping avoid macro proliferation.
+
+- **Windows HRESULT Support**: Specialized assertions verify Windows `HRESULT` codes, enhancing error checking for Windows-specific API calls.
+
+### Enhanced Test Control and Flexibility
+
+- **Test Skipping at Runtime**: The addition of `GTEST_SKIP()` lets tests dynamically skip execution when preconditions are not met, enhancing test robustness and meaningful reporting.
+
+- **Assertion Placement Rules**: Clear rules and guidelines have been added to help developers use fatal and non-fatal assertions properly in functions with different return types, avoiding common pitfalls like confusing compile errors.
+
+- **Scoped Tracing for Better Diagnostics**: `SCOPED_TRACE` and `ScopedTrace` utilities provide automatic contextual information for failures occurring inside frequently called subroutines, improving debuggability.
+
+- **Fatal Failure Propagation**: GoogleTest introduces mechanisms like `ASSERT_NO_FATAL_FAILURE` and `HasFatalFailure()` to help test authors ensure that fatal failure in subroutines aborts overall test execution as expected, avoiding subtle bugs and crashes.
+
+### Test Resource Sharing and Setup/Tear-Down Improvements
+
+- **Per-Test-Suite Resource Sharing**: Test fixtures can now declare shared static resources, initialized once by `SetUpTestSuite()` and cleaned up by `TearDownTestSuite()`, significantly improving test efficiency when expensive resources are involved.
+
+- **Global Environment Setup and Tear-Down**: Classes deriving from `::testing::Environment` can provide global setup and teardown logic for entire test programs, useful for shared resources common to multiple test suites.
+
+### Advanced Parameterization
+
+- **Value-Parameterized Tests**: Support has been extended allowing testing over varying data inputs without duplicating test code. Defining fixtures with the `TEST_P` macro and instantiating them via `INSTANTIATE_TEST_SUITE_P` simplifies data-driven testing.
+
+- **Typed and Type-Parameterized Tests**: GoogleTest enables running the same tests for different types using `TYPED_TEST` and `TYPED_TEST_SUITE`, empowering generic testing. The `TYPED_TEST_SUITE_P` allows abstract tests to be defined separately and instantiated later.
+
+- **Custom Test Naming**: Developers can specify custom functions to generate unique and meaningful test names for parameterized tests, avoiding ambiguous or default-generated names.
+
+### Death Tests Enhancements
+
+- **Robust Death Test Framework**: GoogleTest supports verifying correct program termination through death tests, including process exits and signal handling, with configurable styles (`fast` and `threadsafe`) optimizing performance or thread safety.
+
+- **Improved Naming and Thread Awareness**: Naming conventions and internal warnings guide users to avoid threading issues during death tests, enhancing test reliability.
+
+- **Exit Status and Output Verification**: Death tests verify exit codes, signal kills, and stderr content, ensuring precise validation of failure scenarios.
+
+### Extensibility and Customization
+
+- **Custom Value Printers**: Users can teach GoogleTest how to format complex types in failure messages via `AbslStringify()` or `PrintTo()` overloads, leading to more readable output.
+
+- **Event Listener API**: GoogleTest lets users register custom event listeners to react to test events, enabling alternative output formats, logging, or integrations.
+
+- **Programmatic Test Registration**: For dynamic test needs, tests can now be registered at runtime via `::testing::RegisterTest()`, enabling flexible, data-driven test generation.
+
+### Output and Reporting
+
+- **Rich Reporting Formats**: GoogleTest can generate detailed XML and JSON reports for integration with CI systems and other tooling.
+
+- **Output Customization**: Flags allow control over colored output, verbosity, elapsed time display, UTF-8 text printing, and inclusion of disabled tests.
+
+- **Debugger Support**: Break-on-failure mode facilitates immediate inspection upon assertion failures during debugging.
+
+### Performance and Stability
+
+- **Test Repetition and Shuffling**: Users can repeat tests multiple times or shuffle their execution order to reveal flaky tests or interdependencies.
+
+- **Test Sharding for Parallel Execution**: Built-in support for splitting tests across multiple machines or processes accelerates large test suite runs.
+
+- **Sanitizer Integration**: GoogleTest hooks into sanitizers (UBSan, ASan, TSan) to turn sanitizer errors into test failures.
+
+## Practical Tips and Best Practices
+
+- Always use `EXPECT_*` assertions unless subsequent code depends on the condition for safety, in which case use `ASSERT_*` to abort early.
+- Use `SCOPED_TRACE` to add meaningful context to failures in repeated or nested code invocations.
+- For expensive shared resources, implement `SetUpTestSuite()`/`TearDownTestSuite()` to avoid redundant initialization.
+- Leverage parameterized tests to minimize code duplication and maximize coverage.
+- Avoid placing fatal assertions in constructors or destructors; use `SetUp()`/`TearDown()` instead.
+
+## Example: Using a Value-Parameterized Test
+
+```cpp
+class MathTest : public testing::TestWithParam<int> {};
+
+TEST_P(MathTest, IsEven) {
+  int n = GetParam();
+  EXPECT_EQ(n % 2, 0) << n << " is not even";
+}
+
+INSTANTIATE_TEST_SUITE_P(EvenNumbers, MathTest, testing::Values(2, 4, 6, 8));
+```
+
+This test runs multiple times with provided parameters, succinctly verifying evenness across inputs.
+
+## Troubleshooting Common Issues
+
+- Fatal assertions must be in void-returning functions; otherwise expect compile errors.
+- Use `HasFatalFailure()` to halt test execution after failure in helper functions.
+- Death tests require a file system and may behave differently on multithreaded tests; heed warnings and naming conventions.
+- When using global environments, register them before `RUN_ALL_TESTS()`.
+
+## Related Documentation
+
+- [GoogleTest Primer](primer.md): Core concepts and getting started
+- [Assertions Reference](reference/assertions.md): Complete list of assertions
+- [Advanced GoogleTest Topics](advanced.md): Deeper details on complex features
+- [Parameterized & Typed Tests](api-reference/googletest-core-apis/parameterized-typed-tests.md)
+- [Death Tests Guide](guides/parameterization-advanced/death-tests-guide.md)
+- [Event Listener API](advanced.md#extending-googletest-by-handling-test-events)
+
+---
+
+Stay up to date with the latest releases by checking the [Version History & Major Releases](changelog/release-highlights/version-history.md) page and consult [Breaking Changes and Migration Notes](changelog/breaking-changes-upgrades/breaking-changes.md) before upgrading.
+
+Continuous integration environments, IDEs, and toolchains benefit directly from many of these improvements, making your development process faster, more reliable, and more maintainable.

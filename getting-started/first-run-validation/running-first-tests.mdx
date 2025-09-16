@@ -1,0 +1,265 @@
+---
+title: "Running and Validating Tests"
+description: "Describes how to execute your test suite, interpret the test runner’s output, and verify successful integration. Outlines key commands and what to expect in the output for both GoogleTest and GoogleMock."
+---
+
+# Running and Validating Tests
+
+Learn how to execute your GoogleTest or GoogleMock test suite, read and understand the test runner output, and verify that your tests are running successfully. This guide walks you through key commands, their expected output, and how to interpret the results to confirm proper integration.
+
+---
+
+## 1. Starting Your Test Suite
+
+After writing and building your tests, your immediate next step is running them. GoogleTest and GoogleMock produce executables that behave like typical programs.
+
+### Step-by-Step: Run Your Tests
+
+1. **Open your terminal or command prompt.**
+
+2. **Navigate to the directory containing your built test executable.**
+
+3. **Run the test executable directly by typing:**
+
+   ```bash
+   ./your_test_executable
+   ```
+
+   - On Windows, the executable might be `your_test_executable.exe`.
+
+4. **Observe the output on the console.** GoogleTest automatically discovers all registered tests and runs them unless a filter or other flags are specified.
+
+<Tip>
+Run your test binary without arguments first to execute all tests and get a baseline of successful execution.
+</Tip>
+
+---
+
+## 2. Understanding the Test Runner Output
+
+GoogleTest provides detailed console output indicating test progress and results.
+
+### Typical Output Sections
+
+- **Test Start and End Markers:**
+  ```none
+  [==========] Running X tests from Y test suites.
+  [----------] Global test environment set-up.
+  [ RUN      ] TestSuite.TestName
+  [       OK ] TestSuite.TestName (Time ms)
+  [  SKIPPED ] TestSuite.TestName
+  [  FAILED  ] TestSuite.TestName
+  [----------] Global test environment tear-down
+  [==========] X tests from Y test suites ran. (Total Time ms total)
+  [  PASSED  ] N tests.
+  [  FAILED  ] M tests, listed below:
+  [  FAILED  ] FailedTestSuite.FailedTestName
+  ```
+
+### Important Messages Explained
+
+- `[ RUN      ]` indicates the start of a test.
+- `[       OK ]` indicates a test passed.
+- `[  FAILED  ]` indicates a test failed.
+- `[  SKIPPED ]` indicates a test was skipped, often due to `GTEST_SKIP()`.
+- Summary of total tests run, passed, failed, and skipped at the end.
+
+<Tip>
+If color output is supported, passed tests appear in green and failures in red for easier visibility.
+</Tip>
+
+---
+
+## 3. Using Test Filters and Selective Runs
+
+GoogleTest supports running subsets of tests to focus on specific cases.
+
+- Use the `--gtest_filter` flag to run tests matching a pattern:
+
+  ```bash
+  ./your_test_executable --gtest_filter=TestSuiteName.TestName
+  ```
+
+- Wildcards `*` and `?` can be used for pattern matching.
+
+- To exclude tests, use the minus sign `-`:
+
+  ```bash
+  --gtest_filter=-TestSuiteName.TestName
+  ```
+
+<Tip>
+Running targeted tests speeds up debugging and CI cycles.
+</Tip>
+
+---
+
+## 4. Validating Test Execution Programmatically
+
+To verify tests ran successfully, check the return code of your test executable:
+
+- **0**: All tests passed.
+- **1**: One or more tests failed.
+
+Example in a shell script or CI pipeline:
+
+```bash
+./your_test_executable
+if [ $? -eq 0 ]; then
+  echo "All tests passed successfully."
+else
+  echo "Some tests failed."
+fi
+```
+
+<Tip>
+Always respect the exit code from `RUN_ALL_TESTS()` to correctly detect test success or failure.
+</Tip>
+
+---
+
+## 5. Interpreting Test Failures
+
+When a test fails, the output will include a detailed failure message indicating:
+
+- The source file and line number where the failure occurred.
+- The assertion that failed.
+- Expected and actual values if applicable.
+- Any messages you included via streaming into the assertion.
+
+Example:
+
+```none
+/path/to/test_file.cc:42: Failure
+Expected equality of these values:
+  actual_value
+  expected_value
+[  FAILED  ] TestSuite.TestName (0 ms)
+```
+
+<Tip>
+Use this detailed output to quickly locate and fix defects.
+</Tip>
+
+---
+
+## 6. Working with Disabled and Skipped Tests
+
+- Tests prefixed with `DISABLED_` are compiled but excluded from a normal run.
+- Run disabled tests with:
+  
+  ```bash
+  ./your_test_executable --gtest_also_run_disabled_tests
+  ```
+
+- Tests can be programmatically skipped at runtime using `GTEST_SKIP()`.
+
+- Skipped tests show as `[  SKIPPED ]` in the output and do not affect pass/fail results.
+
+---
+
+## 7. Advanced Output Options
+
+### Listing Tests Only
+
+To display available tests without running:
+
+```bash
+./your_test_executable --gtest_list_tests
+```
+
+### Generating XML or JSON Reports
+
+For integration in CI systems or reporting tools, generate a machine-readable output:
+
+```bash
+./your_test_executable --gtest_output=xml:report.xml
+```
+
+or
+
+```bash
+./your_test_executable --gtest_output=json:report.json
+```
+
+These reports include detailed test results, durations, and failure info.
+
+---
+
+## 8. Running GoogleMock Tests
+
+GoogleMock integrates seamlessly with GoogleTest. Use the same commands to run tests including mocks.
+
+- When linked with `gmock_main`, the executable initializes both GoogleTest and GoogleMock.
+- Output format and flags are the same as GoogleTest.
+
+---
+
+## 9. Troubleshooting Common Issues
+
+- **No tests run:** Verify that tests are properly registered and that filters or disabled prefixes are not preventing execution.
+- **Unexpected skipped tests:** Check if you or dependencies call `GTEST_SKIP()` or if any setup fails.
+- **No output:** Make sure your test executable is built and run correctly.
+- **Parsing command-line flags:** Always call `testing::InitGoogleTest(&argc, argv);` before `RUN_ALL_TESTS()` in custom `main()`.
+
+<Tip>
+Check the [Troubleshooting Common Setup Issues](../getting-started/first-run-validation/troubleshooting-setup.md) for detailed help.
+</Tip>
+
+---
+
+## 10. Useful Flags for Running Tests
+
+| Flag                                | Description                                   |
+| ----------------------------------- | --------------------------------------------- |
+| `--gtest_filter`                    | Run only tests matching a filter              |
+| `--gtest_list_tests`                | List all available tests                       |
+| `--gtest_also_run_disabled_tests`  | Includes disabled tests in the run            |
+| `--gtest_repeat=N`                  | Repeat tests N times (N=-1 repeats forever)   |
+| `--gtest_break_on_failure`          | Break into debugger on first failure          |
+| `--gtest_output=xml:filename.xml`   | Generate XML report for CI tools               |
+| `--gtest_output=json:filename.json` | Generate JSON report                           |
+
+---
+
+## 11. Summary
+
+- Run the test binary to execute all registered tests.
+- Examine console output to assess passes, failures, and skips.
+- Use filters for selective test runs.
+- Check the exit code: 0 means success.
+- Generate machine-readable reports for CI integration.
+- GoogleMock tests run identically to GoogleTest.
+
+---
+
+## 12. Related Resources
+
+- [Writing and Building Your First Test](../getting-started/first-run-validation/writing-first-test.md): How to write and compile tests before running.
+- [Troubleshooting Common Setup Issues](../getting-started/first-run-validation/troubleshooting-setup.md): Fix common run-time problems.
+- [Basic Configuration & Integration](../getting-started/setup-basics/basic-configuration.md): How to configure your build system for tests.
+- [GoogleTest Primer](../overview/intro-and-value/what-is-googletest.md): Learn core concepts behind GoogleTest.
+
+---
+
+## 13. Example: Minimal `main()` to Run Tests
+
+```cpp
+#include <gtest/gtest.h>
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+```
+
+This will discover, run, and report the results of all tests in your binary.
+
+---
+
+## 14. Additional Tips
+
+- Use `SCOPED_TRACE` to add context to failures within subroutines.
+- Use `EXPECT_*` for non-fatal checks, `ASSERT_*` when test should abort early.
+- Disable flaky tests temporarily by prefixing them with `DISABLED_`.
+- Regularly review your test output to catch regressions early.

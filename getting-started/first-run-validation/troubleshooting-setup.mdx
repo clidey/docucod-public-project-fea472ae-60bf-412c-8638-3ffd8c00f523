@@ -1,0 +1,175 @@
+---
+title: "Troubleshooting Common Setup Issues"
+description: "Provides actionable solutions for the most common installation and configuration problems new users might encounter, such as compiler errors, missing dependencies, or build system integration issues. Promotes self-sufficiency and confidence to move past early roadblocks."
+---
+
+# Troubleshooting Common Setup Issues
+
+This page equips you with clear, actionable solutions to quickly move past common installation and configuration problems encountered during your first interactions with GoogleTest. These issues include compiler errors, missing dependencies, and build system integration snags — all critical to get your test environment up and running smoothly.
+
+---
+
+## 1. Diagnosing Compiler Errors
+
+Compiler errors are the most frequent early blockers when integrating GoogleTest. Here's how to identify and fix typical compilation problems:
+
+### Common Compiler Error Scenarios
+
+- **C++ Standard Not Supported**
+  - GoogleTest requires a C++17 compatible compiler.
+  - **Solution:** Ensure your compiler is configured to use at least C++17.
+
+- **Missing Header or Source Files**
+  - Errors like `gtest/gtest.h not found` indicate improper include paths.
+  - **Solution:** Verify your project’s include directories include the GoogleTest headers. If building GoogleTest standalone, confirm you have cloned the repo and pointed the build system properly.
+
+- **Macro or Symbol Not Defined**
+  - Conflicts or missing macro definitions may cause compilation to fail.
+  - **Solution:** Avoid macro clashes by defining relevant `GTEST_DONT_DEFINE_*` macros in your compile flags if necessary.
+
+### Step-by-step Compiler Issue Resolution
+
+1. **Check C++ Standard Setting**
+   - Ensure your build system specifies `-std=c++17` (for GCC/Clang) or equivalent flag for MSVC.
+
+2. **Verify GoogleTest Header Paths**
+   - Confirm headers are accessible via your project’s include paths. For CMake users, add the GoogleTest include directory using `target_include_directories()`.
+
+3. **Rebuild GoogleTest Properly**
+   - If building as a standalone library, follow these steps:
+
+```shell
+mkdir build
+cd build
+cmake .. -DBUILD_GMOCK=OFF
+make
+sudo make install
+```
+
+4. **Resolve Macro Conflicts**
+   - If you encounter macro redefinition errors, try adding flags like `-DGTEST_DONT_DEFINE_TEST=1` and use `GTEST_TEST()` instead of `TEST()`.
+
+<Note>
+Review the [Supported Platforms & Requirements](/overview/getting-started-integration/supported-platforms) guide to confirm compiler compatibility.
+</Note>
+
+---
+
+## 2. Handling Missing Dependencies
+
+GoogleTest depends on your compiler and build toolchain configurations primarily. It has no runtime dependencies, but build-time linking and threading support are essential.
+
+### Common Problems and Remedies
+
+- **Pthreads Not Found**
+  - On POSIX systems, GoogleTest relies on `pthread` for thread-safe testing.
+  - **Solution:** Ensure the pthread library is installed and linked. In Makefiles or CMake, link with `-lpthread` or `Threads::Threads`.
+
+- **C++ Standard Library Mismatch**
+  - Linking errors may occur if your build uses conflicting standard libraries.
+  - **Solution:** Ensure GoogleTest and your code are built with the same standard library settings (like libc++ vs libstdc++).
+
+- **Visual Studio Runtime Conflicts**
+  - Errors like mismatch on 'RuntimeLibrary' indicate static vs dynamic CRT conflicts.
+  - **Solution:** Use the CMake `gtest_force_shared_crt` option or adjust project settings to align runtime linkage.
+
+<Warning>
+Failure to align runtime and threading libraries can lead to linker errors or runtime crashes. Pay special attention to your platform-specific build environment.
+</Warning>
+
+---
+
+## 3. Resolving Build System Integration Issues
+
+Integrating GoogleTest into your existing build system can introduce subtle issues.
+
+### Troubleshooting Tips per Build System
+
+#### CMake
+
+- Use GoogleTest's provided CMake support:
+
+  ```cmake
+  include(FetchContent)
+  FetchContent_Declare(
+    googletest
+    URL https://github.com/google/googletest/archive/refs/tags/v1.17.0.zip
+  )
+  FetchContent_MakeAvailable(googletest)
+
+  add_executable(my_tests test.cpp)
+  target_link_libraries(my_tests gtest_main)
+  add_test(NAME my_tests COMMAND my_tests)
+  ```
+
+- If using older CMake versions or custom setups, ensure the include directories and dependencies are correctly specified.
+
+#### Bazel
+
+- When using Bazel, use rules provided in the ecosystem.
+- Confirm you are using the correct GoogleTest workspace and linking against targets as specified.
+
+#### Manual or Makefile Builds
+
+- Explicitly add include and source paths for both GoogleTest and GoogleMock if needed.
+- Link against `-pthread` on POSIX platforms.
+
+### Common Pitfalls
+
+- Forgetting to call `testing::InitGoogleTest(&argc, argv);` in your `main()` before `RUN_ALL_TESTS()`.
+- Mixing linkage of `gtest` and `gtest_main` libraries incorrectly.
+- Calling `RUN_ALL_TESTS()` more than once, which can cause unpredictable behavior.
+
+---
+
+## 4. Practical Troubleshooting Workflows
+
+Follow this approach when encountering setup issues:
+
+1. **Reproduce the Issue**
+   - Try a simple standalone example from the [GoogleTest Primer](https://github.com/google/googletest/blob/main/docs/primer.md).
+
+2. **Check Logs and Error Messages**
+   - Review compiler/linker outputs carefully.
+
+3. **Simplify the Build**
+   - Isolate GoogleTest integration from other project components.
+
+4. **Verify Environment**
+   - Confirm compiler version, CMake version, and platform match requirements.
+
+5. **Search Known Issues**
+   - Refer to GoogleTest GitHub issues and FAQ documentation.
+
+6. **Ask for Help with Details**
+   - Provide exact error messages, system info, and minimal reproduction snippets if seeking community or official support.
+
+---
+
+## 5. Summary of Best Practices
+
+- Always use C++17 or later and verify the compiler supports it.
+- Build GoogleTest from source following official instructions unless using a trusted package.
+- Use the recommended CMake integration to minimize manual configuration.
+- Link against the appropriate GoogleTest libraries (`gtest_main` recommended) to avoid writing your own `main()` unless customization is needed.
+- Keep GoogleTest's source tree clean and do not modify its internal headers or source unless you know what you are doing.
+
+---
+
+## 6. Additional Resources
+
+- [Supported Platforms & Requirements](/overview/getting-started-integration/supported-platforms)
+- [Installation Guide (Linux, macOS, Windows)](/getting-started/setup-basics/installation-guide)
+- [Basic Configuration & Integration](/getting-started/setup-basics/basic-configuration)
+- [Writing and Building Your First Test](/getting-started/first-run-validation/writing-first-test)
+- [Running and Validating Tests](/getting-started/first-run-validation/running-first-tests)
+- [GoogleTest Primer](https://github.com/google/googletest/blob/main/docs/primer.md)
+
+
+<Tip>
+If you get stuck, start with a minimal test case and gradually add your project's configuration. This helps pinpoint the source of errors quickly.
+</Tip>
+
+<Warning>
+Do not ignore compiler or linker warnings during setup; these often foreshadow critical issues.
+</Warning>

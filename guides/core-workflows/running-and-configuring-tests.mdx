@@ -1,0 +1,335 @@
+---
+title: "Running and Configuring Tests"
+description: "A practical walkthrough of running GoogleTest binaries, enabling test discovery, and applying run-time configuration (such as filtering tests and output formats) for flexible workflows."
+---
+
+# Running and Configuring Tests
+
+A practical walkthrough of running GoogleTest binaries, enabling test discovery, and applying run-time configuration (such as filtering tests and output formats) for flexible workflows.
+
+---
+
+## 1. Overview
+
+GoogleTest test programs are executable binaries that contain your tests. Running these binaries executes all registered tests according to your configuration and command-line flags.
+
+This guide helps you:
+
+- Run tests from compiled GoogleTest binaries.
+- Discover which tests are available without executing them.
+- Configure test execution to run subsets of tests.
+- Apply run-time options such as output formatting, repetition, and failure handling.
+
+### Prerequisites
+
+- You have built your test binary with GoogleTest (and optionally GoogleMock) included.
+- Your test binary links against GoogleTest libraries.
+- Basic familiarity with writing tests using TEST, TEST_F, or TEST_P macros.
+
+### Expected Outcome
+
+By following this guide, you will confidently run your tests, select specific tests or suites for execution, customize output formats, handle flaky tests, and generate reports suitable for CI pipelines.
+
+### Time Estimate
+
+Approximately 15-30 minutes to understand and practice using the key run-time options.
+
+### Difficulty Level
+
+Beginner to Intermediate.
+
+---
+
+## 2. Running Your Test Binary
+
+GoogleTest test binaries run as standalone executables. The main function typically looks like this:
+
+```cpp
+int main(int argc, char** argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+```
+
+### Step 1: Execute the Test Binary
+
+Run your test executable directly from the command line:
+
+```bash
+$ ./my_test_binary
+```
+
+### Expected Result
+
+- The console outputs the results of all tests.
+- Summary statistics at the end show the number of tests run, passed, failed, or skipped.
+
+### Step 2: List Available Tests Without Running Them
+
+To discover all tests included in your binary, use the `--gtest_list_tests` flag:
+
+```bash
+$ ./my_test_binary --gtest_list_tests
+```
+
+**Output format example:**
+
+```none
+MyTestSuite1.
+  TestAlpha
+  TestBeta
+MyTestSuite2.
+  TestGamma
+```
+
+No tests are run in this mode.
+
+---
+
+## 3. Configuring Test Execution
+
+The GoogleTest framework supports flexible configuration via command-line flags to control which tests run, how they output results, and how test failures affect execution.
+
+All configuration flags must be passed before running `RUN_ALL_TESTS()`. They can also be set using environment variables.
+
+### 3.1. Running a Subset of Tests with --gtest_filter
+
+The `--gtest_filter` flag allows you to specify which tests to run by naming patterns.
+
+- Format: `--gtest_filter=PositivePatterns[-NegativePatterns]`
+- Patterns use shell-style globbing:
+  - `*` matches any substring
+  - `?` matches any single character
+
+#### Examples:
+
+- Run all tests in suite `FooTest`:
+  ```bash
+  ./my_test_binary --gtest_filter=FooTest.*
+  ```
+
+- Run tests with names containing "Login":
+  ```bash
+  ./my_test_binary --gtest_filter=*_Login*
+  ```
+
+- Run all except disabled tests:
+  ```bash
+  ./my_test_binary --gtest_filter=-*DISABLED_*
+  ```
+
+- Run tests in suite `FooTest` except `Bar`:
+  ```bash
+  ./my_test_binary --gtest_filter=FooTest.*-FooTest.Bar
+  ```
+
+### 3.2. Running Disabled Tests
+
+Tests prefixed with `DISABLED_` are skipped by default. To include them, use:
+
+```bash
+./my_test_binary --gtest_also_run_disabled_tests
+```
+
+Combine this with a filter to run disabled tests selectively.
+
+### 3.3. Stop Execution on First Failure
+
+To improve debugging speed or identify the first breaking error, use:
+
+```bash
+./my_test_binary --gtest_fail_fast
+```
+
+GoogleTest will terminate test execution immediately on the first failure.
+
+### 3.4. Repeating Tests
+
+For flaky or intermittent failures, repeat all or filtered tests multiple times:
+
+```bash
+./my_test_binary --gtest_repeat=100
+```
+
+A value of `-1` repeats tests indefinitely.
+
+Note: You can combine this with `--gtest_filter` to repeat only certain tests.
+
+### 3.5. Randomizing Test Order
+
+To detect dependencies between tests, run them in random order:
+
+```bash
+./my_test_binary --gtest_shuffle
+```
+
+Use `--gtest_random_seed=SEED` to run the tests in the same randomized order reproducibly.
+
+### 3.6. Output Customization
+
+#### Colored Output
+
+Enable or disable colored output for easier reading:
+
+```bash
+./my_test_binary --gtest_color=yes
+```
+
+Options: `yes`, `no`, or `auto` (default: auto).
+
+#### Suppress Test Passes
+
+Only show failed tests:
+
+```bash
+./my_test_binary --gtest_brief=1
+```
+
+#### Disable Printing Elapsed Time
+
+If you want cleaner output, hide elapsed time:
+
+```bash
+./my_test_binary --gtest_print_time=0
+```
+
+#### Suppress UTF-8 Text Output
+
+Disable printing UTF-8 characters if your output medium doesn't support them:
+
+```bash
+./my_test_binary --gtest_print_utf8=0
+```
+
+### 3.7. Test Result Reports
+
+#### XML Report
+
+Generate a JUnit-compatible XML report for CI integration:
+
+```bash
+./my_test_binary --gtest_output=xml:report.xml
+```
+
+If the path is a directory, GoogleTest will generate a uniquely named file.
+
+#### JSON Report
+
+Similarly, create a JSON report:
+
+```bash
+./my_test_binary --gtest_output=json:report.json
+```
+
+These reports provide detailed test run results for integration with dashboards.
+
+---
+
+## 4. Practical Examples
+
+### Example 1: Run All Tests and Generate XML Report
+
+```bash
+$ ./my_test_binary --gtest_output=xml:build/test_results.xml
+```
+
+You get console output plus the detailed XML report saved.
+
+### Example 2: Run Specific Test Suite Only
+
+```bash
+$ ./my_test_binary --gtest_filter=MathTest.*
+```
+
+### Example 3: Run Only Disabled Tests for Debugging
+
+```bash
+$ ./my_test_binary --gtest_also_run_disabled_tests --gtest_filter=*DISABLED_*
+```
+
+### Example 4: Repeat a Failing Test to Catch Intermittent Issues
+
+```bash
+$ ./my_test_binary --gtest_filter=NetworkTest.ConnectFails --gtest_repeat=100
+```
+
+---
+
+## 5. Tips and Best Practices
+
+- **Always check the return value of `RUN_ALL_TESTS()`.**
+  It signals overall test success/failure and is crucial for CI.
+
+- **Use test filtering** to speed up development iterations by running only relevant tests.
+
+- **Combine filtering and disabling** to quickly isolate problematic tests.
+
+- **Generate XML or JSON reports** in CI to track results over time.
+
+- **Use shuffling and repeating** to uncover hidden test interdependencies and flaky tests.
+
+- **Keep test and suite names free of underscores `_`** to avoid naming collisions and issues.
+
+- When listing tests with `--gtest_list_tests`, use the output to learn or script automated runs.
+
+- Use `GTEST_FAIL_FAST` cautiously—while it speeds up failing test discovery, it hides other failures.
+
+---
+
+## 6. Troubleshooting Common Issues
+
+<AccordionGroup title="Common Issues When Running Tests">
+<Accordion title="Test suite or test not found with filtering">
+Ensure your filter pattern matches existing test names exactly. Use `--gtest_list_tests` to confirm available tests and adjust your filter patterns accordingly.
+</Accordion>
+<Accordion title="Disabled tests not running">
+Remember that tests prepended with `DISABLED_` are skipped by default. Enable them with `--gtest_also_run_disabled_tests`.
+</Accordion>
+<Accordion title="Colored output not working as expected">
+Confirm terminal supports color codes. Try overriding with `--gtest_color=yes`. On some platforms, output redirection disables colors.
+</Accordion>
+<Accordion title="XML or JSON report file not generated">
+Verify you have write permissions to the specified path. Check that the path is correct and not a directory unless intended.
+</Accordion>
+<Accordion title="RUN_ALL_TESTS return value ignored">
+Compiler errors require your `main()` to return the result of `RUN_ALL_TESTS()`. Fix your `main()` as follows:
+
+```cpp
+int main(int argc, char** argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+```
+</Accordion>
+</AccordionGroup>
+
+---
+
+## 7. Next Steps & Related Content
+
+- Explore the [Writing Your First GoogleTest](../guides/core-workflows/writing-first-test.md) guide to create tests and integrate them into your build.
+- Learn advanced configurations in [Advanced GoogleTest Topics](../docs/advanced.md).
+- Use filters and test parameterization for scalable testing workflows:
+  - [Using Parameterized and Typed Tests](../guides/parameterization-advanced/parameterized-tests-guide.md)
+- Leverage mocking capabilities described in the [Creating and Using Mock Objects](../guides/mocking-patterns/creating-mocks.md) guide.
+- For troubleshooting, refer to [Troubleshooting Common Setup Issues](../getting-started/first-run-validation/troubleshooting-setup.md).
+
+---
+
+## 8. References
+
+- [GoogleTest Primer](../docs/primer.md)
+- [GoogleTest FAQ](../docs/faq.md)
+- [GoogleTest API Reference: Testing](../docs/reference/testing.md)
+- [GoogleTest Advanced Topics](../docs/advanced.md)
+- [GoogleTest Samples](../docs/samples.md)
+
+---
+
+This page focuses specifically on running and configuring test binaries to achieve controlled and insightful test executions.
+
+---
+
+<Check>
+Remember: Always initialize GoogleTest with InitGoogleTest before running tests to recognize flags.
+</Check>

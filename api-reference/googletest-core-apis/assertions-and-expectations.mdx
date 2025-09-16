@@ -1,0 +1,360 @@
+---
+title: "Assertions & Expectations"
+description: "Comprehensive list and usage detail for assertion macros and the AssertionResult API. Explains equality, comparisons, floating-point, exception, and death test assertions, as well as differences between fatal and non-fatal checks. Essential reference for verifying test outcomes."
+---
+
+# Assertions & Expectations
+
+This reference details the comprehensive set of assertion macros and the `AssertionResult` API provided by GoogleTest. It focuses on verifying test outcomes through various assertion types including equality, comparisons, floating-point approximations, exceptions, and death tests. Additionally, it clarifies the key difference between fatal and non-fatal assertions, empowering you to precisely control test flow and failure handling.
+
+---
+
+## Assertion Macros Overview
+
+GoogleTest offers assertion macros in pairs: `EXPECT_` and `ASSERT_`. Both sets support streaming custom messages with `<<` for enhanced failure context.
+
+- **`EXPECT_` macros**: Generate *non-fatal* failures, allowing test functions to continue.
+- **`ASSERT_` macros**: Generate *fatal* failures, aborting the current function immediately.
+
+Use the form that aligns with your test strategy — for critical checks that must halt test execution, use `ASSERT_`; otherwise, `EXPECT_` lets tests continue evaluating more conditions.
+
+Example:
+```cpp
+EXPECT_TRUE(condition) << "Condition failed because ...";
+ASSERT_EQ(expected, actual) << "Values differ here";
+```
+
+
+## Explicit Success and Failure
+
+Sometimes, test flow depends on control logic beyond mere Boolean expressions. GoogleTest provides specific assertions for these cases:
+
+### SUCCEED()
+
+Generates a success explicitly. Note it does **not** make the whole test succeed if prior failures exist. Primarily useful as documentation or to mark intentional pass points.
+
+### FAIL()
+
+Generates a *fatal* failure and aborts the current void-returning function. Use it for unreachable code paths or mandatory failure points.
+
+### ADD_FAILURE()
+
+Generates a *nonfatal* failure allowing the current function to continue.
+
+### ADD_FAILURE_AT(file, line)
+
+Generates a nonfatal failure reporting the specific source file and line number — useful for propagated failures in helpers.
+
+
+## Boolean Condition Assertions
+
+Test simple Boolean predicates or `AssertionResult` objects that encode detailed success/failure:
+
+- `EXPECT_TRUE(condition)` / `ASSERT_TRUE(condition)`
+- `EXPECT_FALSE(condition)` / `ASSERT_FALSE(condition)`
+
+These provide diagnostic failure messages including actual and expected values. The condition parameter can also be an `AssertionResult` for richer messages.
+
+
+## Binary Comparison Assertions
+
+Assert relationships between two values that can be compared with relevant operators. Evaluation of arguments happens *exactly once*.
+
+- Equality: `EXPECT_EQ(val1, val2)`, `ASSERT_EQ(val1, val2)`
+- Inequality: `EXPECT_NE`, `ASSERT_NE`
+- Less than: `EXPECT_LT`, `ASSERT_LT`
+- Less or equal: `EXPECT_LE`, `ASSERT_LE`
+- Greater than: `EXPECT_GT`, `ASSERT_GT`
+- Greater or equal: `EXPECT_GE`, `ASSERT_GE`
+
+**Important Notes:**
+
+- When comparing pointers to C strings, these macros test pointer identity, *not* string content. Use the string comparison macros below instead.
+- For a pointer to `NULL`, prefer `nullptr` over `NULL` for clarity and correctness.
+
+
+## String Equality Assertions (C strings and Wide Strings)
+
+Compare C strings by contents, handling `nullptr` gracefully.
+
+- `EXPECT_STREQ(str1, str2)` / `ASSERT_STREQ(str1, str2)`: Check if strings have the same content.
+- `EXPECT_STRNE(str1, str2)` / `ASSERT_STRNE(str1, str2)`: Check if strings differ.
+- `EXPECT_STRCASEEQ(str1, str2)` / `ASSERT_STRCASEEQ(str1, str2)`: Same content ignoring case.
+- `EXPECT_STRCASENE(str1, str2)` / `ASSERT_STRCASENE(str1, str2)`: Different content ignoring case.
+
+Wide string (`wchar_t*`) support is available for all above macros. Failure messages display converted UTF-8 strings.
+
+
+## Floating-Point Comparison Assertions
+
+Floating-point equality requires approximations due to rounding. GoogleTest provides tailored macros:
+
+- `EXPECT_FLOAT_EQ(val1, val2)` / `ASSERT_FLOAT_EQ(val1, val2)`
+- `EXPECT_DOUBLE_EQ(val1, val2)` / `ASSERT_DOUBLE_EQ(val1, val2)`
+
+They test whether two floats/doubles are within 4 ULPs (units in the last place).
+
+For explicit absolute tolerance, use:
+
+- `EXPECT_NEAR(val1, val2, abs_error)` / `ASSERT_NEAR(val1, val2, abs_error)`
+
+which confirms the absolute difference does not exceed `abs_error`. Special handling is included for infinities and NaNs.
+
+
+## Exception Assertions
+
+Requires exceptions enabled in your build.
+
+- `EXPECT_THROW(statement, exception_type)` / `ASSERT_THROW(statement, exception_type)`: Checks that `statement` throws the expected exception type.
+- `EXPECT_ANY_THROW(statement)` / `ASSERT_ANY_THROW(statement)`: Checks that `statement` throws any exception.
+- `EXPECT_NO_THROW(statement)` / `ASSERT_NO_THROW(statement)`: Checks that `statement` throws no exceptions.
+
+Note that `statement` can be any compound C++ statement.
+
+
+## Predicate Assertions
+
+For more complex conditions or richer error messages, GoogleTest supports predicates: functions or functors returning `bool` or `AssertionResult`. These can express arbitrary logic with clear failure details.
+
+### Basic Predicate Assertions (`EXPECT_PREDn` / `ASSERT_PREDn`)
+
+Check predicates with 1–5 arguments that return `bool`:
+
+```cpp
+EXPECT_PRED2(IsMutuallyPrime, x, y);
+```
+
+Upon failure, GoogleTest prints the values of arguments, helping diagnose errors.
+
+### Predicate Format Assertions (`EXPECT_PRED_FORMATn` / `ASSERT_PRED_FORMATn`)
+
+Use predicate-formatters returning `AssertionResult` for full control over failure messages:
+
+```cpp
+AssertionResult AssertMutuallyPrime(const char* expr1, const char* expr2, int m, int n) {
+  if (MutuallyPrime(m,n)) return AssertionSuccess();
+  return AssertionFailure() << m << " and " << n << " are not mutually prime.";
+}
+EXPECT_PRED_FORMAT2(AssertMutuallyPrime, a, b);
+```
+
+Failure messages will include custom explanatory text.
+
+
+## Using Matchers
+
+See [`EXPECT_THAT(value, matcher)`](https://github.com/google/googletest/blob/main/docs/reference/assertions.md#EXPECT_THAT) for integrating with gMock matchers for expressive, readable assertions.
+
+
+## HRESULT Assertions (Windows Only)
+
+Windows developers can assert on `HRESULT` success or failure:
+
+- `EXPECT_HRESULT_SUCCEEDED(expr)` / `ASSERT_HRESULT_SUCCEEDED(expr)`: Succeeds if `expr` is an `HRESULT` success code.
+- `EXPECT_HRESULT_FAILED(expr)` / `ASSERT_HRESULT_FAILED(expr)`: Succeeds if `expr` is a failure code.
+
+Failure messages include human-readable error messages as well as hex codes.
+
+
+## Death Assertions
+
+Death tests verify code that causes process termination (e.g., via asserts).
+
+- `EXPECT_DEATH(statement, matcher)` / `ASSERT_DEATH(statement, matcher)`: Verifies that executing `statement` causes the process to die with stderr matching `matcher`.
+
+`matcher` can be a regex or gMock matcher on the stderr string. The child process must exit with a non-zero code.
+
+- `EXPECT_DEATH_IF_SUPPORTED`: Like `EXPECT_DEATH` but skips if death tests unsupported.
+
+- `EXPECT_DEBUG_DEATH`: Like `EXPECT_DEATH` but runs statement normally when not in debug mode.
+
+- `EXPECT_EXIT(statement, predicate, matcher)` / `ASSERT_EXIT(statement, predicate, matcher)`: Like death tests, but exit code is checked against `predicate`.
+
+Example:
+```cpp
+EXPECT_DEATH({MyFailingFunc();}, "error message regex");
+EXPECT_EXIT(MyExitFunc(), testing::ExitedWithCode(0), "Success");
+```
+
+*Note: See the [Death Tests Guide](../guides/parameterization-advanced/death-tests-guide.md) for detailed usage and caveats.*
+
+
+## Fatal vs Non-Fatal Assertions
+
+- *Fatal assertions* (`ASSERT_` macros, `FAIL()`) cause the current function to abort immediately upon failure, avoiding executing further potentially meaningless code.
+
+- *Non-fatal assertions* (`EXPECT_` macros, `ADD_FAILURE()`) report failure but let the function continue, enabling multiple checks per test.
+
+Use fatal assertions inside void-returning test functions or helpers to stop test execution when critical failures occur.
+
+
+## Using AssertionResult for Custom Predicates
+
+Implement predicates that return `testing::AssertionResult` to provide rich success/failure details:
+
+```cpp
+testing::AssertionResult IsEven(int n) {
+  if ((n % 2) == 0) return testing::AssertionSuccess() << n << " is even";
+  return testing::AssertionFailure() << n << " is odd";
+}
+```
+
+Use with:
+```cpp
+EXPECT_TRUE(IsEven(value));
+EXPECT_FALSE(IsEven(value));
+```
+
+This outputs informative messages on failure, showing the evaluated values.
+
+
+## Adding Scoped Traces
+
+Use `SCOPED_TRACE()` to add contextual information to failure messages, especially useful in nested or repetitive test calls:
+
+```cpp
+SCOPED_TRACE("Iteration " + std::to_string(i));
+EXPECT_EQ(result, expected);
+```
+
+This appends trace information to failures for better diagnostics.
+
+
+## Common Pitfalls and Best Practices
+
+- **Always stream informative messages** to assertions to clarify failure causes.
+- **Use `ASSERT_` macros only in void-returning functions** to avoid confusing compile errors.
+- **Don't rely on argument evaluation order** — arguments may be evaluated in any order but are guaranteed to be executed exactly once.
+- **Use string comparison macros for C strings** instead of equality macros for address-based checks.
+- **When writing death tests, ensure code under test causes process termination**, not just exception throws.
+
+
+## AssertionResult API Highlights
+
+The class `testing::AssertionResult` represents the outcome of predicates used in assertions.
+
+- `AssertionSuccess()`: Creates a success result.
+- `AssertionFailure()`: Creates a failure result.
+- Results can be streamed to with `<<` to append messages which appear on failure.
+- Supports explicit `bool` conversion, enabling use in Boolean contexts.
+
+Example predicate using AssertionResult:
+
+```cpp
+AssertionResult MyPredicate(const char* expr, int val) {
+  if (val > 0) return AssertionSuccess() << val << " is positive";
+  return AssertionFailure() << val << " is not positive";
+}
+```
+
+
+## Additional Notes
+
+- All assertion macros support streaming of custom failure messages via the insertion (`<<`) operator.
+- Wide strings streamed in assertion messages are automatically converted to UTF-8.
+- Assertion macros evaluate their arguments exactly once to avoid side-effects or performance issues.
+
+
+---
+
+For complete details, see the [GoogleTest Assertions Reference](https://github.com/google/googletest/blob/main/docs/reference/assertions.md) and the [Advanced Topics - More Assertions](../docs/advanced.md#more-assertions).
+
+---
+
+## Code Example: Using Various Assertions
+
+```cpp
+TEST(FooTest, SampleAssertions) {
+  int x = 5;
+  int y = 10;
+
+  EXPECT_TRUE(x < y) << "Expected x to be less than y";
+  ASSERT_EQ(x + 5, y) << "Sum mismatch";
+
+  EXPECT_STREQ("hello", "hello");
+  EXPECT_STRNE("foo", "bar");
+
+  EXPECT_FLOAT_EQ(3.14f, 3.14f);
+  EXPECT_NEAR(3.14, 3.1415, 0.01);
+
+  EXPECT_THROW(throw std::runtime_error("error"), std::runtime_error);
+
+  EXPECT_DEATH({ std::exit(1); }, "");
+}
+```
+
+---
+
+## Troubleshooting Common Assertion Issues
+
+- **Wrong assertion macro usage:** Use `ASSERT_` macros only inside functions returning `void`. Otherwise, you risk confusing compile errors.
+- **String comparison errors:** Don't use `EXPECT_EQ` for C strings; use `EXPECT_STREQ` instead.
+- **Predicate evaluation surprises:** Each predicate argument is evaluated once, so avoid expressions with side-effects unless intentional.
+- **Death test flakiness:** Ensure your death tests are isolated and process termination is deterministic.
+
+
+---
+
+This page is essential reading to verify and validate test outcomes effectively with GoogleTest’s rich assertion APIs.
+
+
+<Accordion title="Detailed Macro List">
+
+### Explicit Success & Failure
+
+- `SUCCEED()`
+- `FAIL()`
+- `ADD_FAILURE()`
+- `ADD_FAILURE_AT(file, line)`
+
+### Boolean Assertions
+
+- `EXPECT_TRUE(condition)` / `ASSERT_TRUE(condition)`
+- `EXPECT_FALSE(condition)` / `ASSERT_FALSE(condition)`
+
+### Comparison Assertions
+
+- `EXPECT_EQ(val1, val2)` / `ASSERT_EQ(val1, val2)`
+- `EXPECT_NE(val1, val2)` / `ASSERT_NE(val1, val2)`
+- `EXPECT_LT(val1, val2)` / `ASSERT_LT(val1, val2)`
+- `EXPECT_LE(val1, val2)` / `ASSERT_LE(val1, val2)`
+- `EXPECT_GT(val1, val2)` / `ASSERT_GT(val1, val2)`
+- `EXPECT_GE(val1, val2)` / `ASSERT_GE(val1, val2)`
+
+### String Assertions
+
+- `EXPECT_STREQ(s1, s2)` / `ASSERT_STREQ(s1, s2)`
+- `EXPECT_STRNE(s1, s2)` / `ASSERT_STRNE(s1, s2)`
+- `EXPECT_STRCASEEQ(s1, s2)` / `ASSERT_STRCASEEQ(s1, s2)`
+- `EXPECT_STRCASENE(s1, s2)` / `ASSERT_STRCASENE(s1, s2)`
+
+### Floating-Point Assertions
+
+- `EXPECT_FLOAT_EQ(val1, val2)` / `ASSERT_FLOAT_EQ(val1, val2)`
+- `EXPECT_DOUBLE_EQ(val1, val2)` / `ASSERT_DOUBLE_EQ(val1, val2)`
+- `EXPECT_NEAR(val1, val2, abs_error)` / `ASSERT_NEAR(val1, val2, abs_error)`
+
+### Exception Assertions
+
+- `EXPECT_THROW(statement, exception_type)` / `ASSERT_THROW(statement, exception_type)`
+- `EXPECT_NO_THROW(statement)` / `ASSERT_NO_THROW(statement)`
+- `EXPECT_ANY_THROW(statement)` / `ASSERT_ANY_THROW(statement)`
+
+### Predicate Assertions
+
+- `EXPECT_PREDn(pred, args...)` / `ASSERT_PREDn(pred, args...)`
+- `EXPECT_PRED_FORMATn(pred_formatter, args...)` / `ASSERT_PRED_FORMATn(pred_formatter, args...)`
+
+### HRESULT Assertions (Windows Only)
+
+- `EXPECT_HRESULT_SUCCEEDED(expr)` / `ASSERT_HRESULT_SUCCEEDED(expr)`
+- `EXPECT_HRESULT_FAILED(expr)` / `ASSERT_HRESULT_FAILED(expr)`
+
+### Death Assertions
+
+- `EXPECT_DEATH(statement, matcher)` / `ASSERT_DEATH(statement, matcher)`
+- `EXPECT_DEATH_IF_SUPPORTED(statement, matcher)` / `ASSERT_DEATH_IF_SUPPORTED(statement, matcher)`
+- `EXPECT_DEBUG_DEATH(statement, matcher)` / `ASSERT_DEBUG_DEATH(statement, matcher)`
+- `EXPECT_EXIT(statement, predicate, matcher)` / `ASSERT_EXIT(statement, predicate, matcher)`
+
+</Accordion>

@@ -1,0 +1,255 @@
+---
+title: "Writing and Building Your First Test"
+description: "Guides users through creating a simple test case and mock, compiling it, and understanding essential test code structure. Includes code examples and pointers to more detailed tutorials for deeper learning."
+---
+
+# Writing and Building Your First Test
+
+Welcome to your first practical journey with GoogleTest! This guide takes you through creating a simple test case, mocking behavior, compiling it, and understanding the essential structure of your test code. By the end, you'll have a running, verified test, and pointers for deeper learning to expand your testing expertise.
+
+---
+
+## 1. Understanding the Test Code Structure
+
+Before writing code, let's get familiar with the basic building blocks of a GoogleTest test:
+
+- **Test Suite**: A collection of related tests grouped under a common name.
+- **Test Case**: A single test identified by a unique name within a suite.
+- **Test Fixture**: A class used for sharing setup/teardown logic and common data across multiple tests.
+- **Mock Objects** (optional): Replace real dependencies with controllable stand-ins to isolate behavior.
+
+The [GoogleTest Primer](https://github.com/google/googletest/blob/main/docs/primer.md) provides a complete conceptual overview, if you want to explore these concepts more thoroughly.
+
+---
+
+## 2. Writing a Simple Test
+
+You start with the `TEST()` macro, which defines a test function within a named test suite. Here's the pattern:
+
+```cpp
+#include <gtest/gtest.h>
+
+// Function to test
+int Factorial(int n) {
+  return (n <= 1) ? 1 : n * Factorial(n - 1);
+}
+
+// Test suite: FactorialTest, Test case: HandlesZeroInput
+TEST(FactorialTest, HandlesZeroInput) {
+  EXPECT_EQ(Factorial(0), 1);
+}
+
+// Test suite: FactorialTest, Test case: HandlesPositiveInput
+TEST(FactorialTest, HandlesPositiveInput) {
+  EXPECT_EQ(Factorial(1), 1);
+  EXPECT_EQ(Factorial(2), 2);
+  EXPECT_EQ(Factorial(3), 6);
+  EXPECT_EQ(Factorial(8), 40320);
+}
+```
+
+Each `TEST()` defines a separate test function. When run, GoogleTest will invoke these and report the results. 
+
+### Key points
+
+- Use `EXPECT_XX` for assertions that allow the test to continue on failure.
+- Use `ASSERT_XX` for fatal assertions that abort the current test function if they fail (important when further code depends on the assertion).
+
+---
+
+## 3. Introducing a Test Fixture for Shared Setup (Optional)
+
+If multiple tests require the same setup or data, use a test fixture class derived from `testing::Test`:
+
+```cpp
+class QueueTest : public testing::Test {
+ protected:
+  QueueTest() {  
+    q1_.Enqueue(1);  
+    q2_.Enqueue(2);
+    q2_.Enqueue(3);
+  }
+
+  Queue<int> q0_;
+  Queue<int> q1_;
+  Queue<int> q2_;
+};
+
+TEST_F(QueueTest, IsEmptyInitially) {
+  EXPECT_EQ(q0_.size(), 0);
+}
+
+TEST_F(QueueTest, DequeueWorks) {
+  int* n = q0_.Dequeue();
+  EXPECT_EQ(n, nullptr);
+
+  n = q1_.Dequeue();
+  ASSERT_NE(n, nullptr);
+  EXPECT_EQ(*n, 1);
+  delete n;
+}
+```
+
+Here, `TEST_F` is used to access the fixture. Each test gets a fresh fixture object.
+
+Tips for fixtures:
+
+- Use the constructor or `SetUp()` for initialization.
+- Cleanup can be done in destructor or `TearDown()`.
+
+---
+
+## 4. Creating and Using a Simple Mock (Optional)
+
+You can define mocks to simulate dependencies when testing isolated units.
+
+### Define a mock class:
+
+```cpp
+#include <gmock/gmock.h>  // Include GoogleMock
+
+class MockFoo {
+ public:
+  MOCK_METHOD(int, GetValue, (), ());
+};
+```
+
+### Use mock with expectations:
+
+```cpp
+TEST(MockTest, GetValueReturnsExpected) {
+  MockFoo mock;
+  EXPECT_CALL(mock, GetValue())
+      .Times(1)
+      .WillOnce(::testing::Return(42));
+
+  int val = mock.GetValue();
+  EXPECT_EQ(val, 42);
+}
+```
+
+This example specifies that `GetValue()` is expected to be called once and will return `42`.
+
+---
+
+## 5. Compiling Your Test
+
+GoogleTest can be integrated easily using popular build systems (CMake, Bazel, etc.). Here's a minimal command line example assuming you have g++ and GoogleTest installed:
+
+```shell
+# Compile your test (assuming 'test.cc' contains your test code)
+g++ -std=c++17 -isystem /path/to/googletest/include -pthread \
+    test.cc /path/to/libgtest.a /path/to/libgtest_main.a -o test
+```
+
+### Verify successful build
+
+Run the executable. A successful run should print each test and indicate pass/fail.
+
+```shell
+./test
+```
+
+Output example:
+
+```
+[==========] Running 2 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 2 tests from FactorialTest
+[ RUN      ] FactorialTest.HandlesZeroInput
+[       OK ] FactorialTest.HandlesZeroInput (0 ms)
+[ RUN      ] FactorialTest.HandlesPositiveInput
+[       OK ] FactorialTest.HandlesPositiveInput (0 ms)
+[----------] 2 tests from FactorialTest (0 ms total)
+[----------] Global test environment tear-down
+[==========] 2 tests from 1 test suite ran. (0 ms total)
+[  PASSED  ] 2 tests.
+```
+
+---
+
+## 6. Running Your First Test
+
+When running your test binary:
+
+- Use command line flags such as `--gtest_filter` to run specific tests.
+- Use `--gtest_list_tests` to list all available tests without running.
+
+Example to run only one test:
+
+```shell
+./test --gtest_filter=FactorialTest.HandlesZeroInput
+```
+
+---
+
+## 7. Understanding Test Output
+
+Test results appear grouped by test suite, showing individual passes or failures:
+
+- `[ RUN      ]` marks the start of a test.
+- `[       OK ]` means the test passed.
+- `[  FAILED  ]` marks a failure.
+
+If a test fails, GoogleTest provides details including:
+
+- File and line number of failure.
+- Expected and actual values.
+- User-specified messages if included.
+
+---
+
+## 8. Additional Resources for Learning
+
+- **GoogleTest Primer**: Fundamentals of writing tests with examples.
+  [primer.md](https://github.com/google/googletest/blob/main/docs/primer.md)
+
+- **GoogleMock Reference**: Detailed documentation on mock method macros, expectations, sequences, and actions.
+  [mocking.md](https://github.com/google/googletest/blob/main/docs/reference/mocking.md)
+
+- **Basic Configuration Guide**: How to properly integrate GoogleTest with CMake or other build systems.
+  [basic-configuration.mdx](https://github.com/google/googletest/blob/main/getting-started/setup-basics/basic-configuration.mdx)
+
+- **Running and Validating Tests**: Details on running test binaries and interpreting results.
+
+- **Advanced Topics**: More in-depth info on assertions, fixtures, parameterized tests, and death tests.
+  [advanced.md](https://github.com/google/googletest/blob/main/docs/advanced.md)
+
+---
+
+## 9. Troubleshooting Common Problems
+
+- Ensure you call `testing::InitGoogleTest(&argc, argv)` before `RUN_ALL_TESTS()` in your `main()`.
+- Confirm your compiler supports C++17 or newer.
+- Use the correct macros: `TEST()` for standalone tests, `TEST_F()` for tests with fixtures.
+- Avoid underscores `_` in test suite and test names to prevent compilation issues.
+- Link your test binary against GoogleTest libraries and with pthread support where necessary.
+
+---
+
+## 10. Example: Complete Minimal Test Program
+
+```cpp
+#include <gtest/gtest.h>
+
+// Sample function for demonstration.
+int Add(int a, int b) {
+  return a + b;
+}
+
+// Simple test without fixture.
+TEST(AddTest, HandlesPositiveNumbers) {
+  EXPECT_EQ(Add(1, 2), 3);
+}
+
+int main(int argc, char** argv) {
+  testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+```
+
+Compile and run this to verify your setup.
+
+---
+
+**Congratulations!** You now know how to write, build, and run your first GoogleTest tests. From here, consider exploring mocks, fixtures, and parameterized tests to journey deeper.

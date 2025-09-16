@@ -1,0 +1,301 @@
+---
+title: "Best Practices for Mocking in C++"
+description: "Explore practical tips and pitfalls when using mocks. Covers testability, reducing false positives, ensuring maintainable tests, and anti-patterns to avoid."
+---
+
+# Best Practices for Mocking in C++
+
+---
+
+## Overview
+
+This guide provides practical advice to help you use mocks effectively in GoogleTest and GoogleMock for C++ testing. It focuses specifically on how to write testable, maintainable mocks while avoiding common pitfalls that lead to brittle or unreliable tests. By following these best practices, you’ll reduce false positives, improve test clarity, and ensure your mocking strategy scales as your codebase grows.
+
+---
+
+## Prerequisites
+
+- Basic familiarity with GoogleMock’s mocking concepts (`MOCK_METHOD`, `EXPECT_CALL`, `ON_CALL`).
+- Understanding of mock strictness levels (`NiceMock`, `NaggyMock`, `StrictMock`).
+- A C++ project with GoogleTest and GoogleMock integrated (see [Installation Guide](../getting-started/setup-basics/installation-guide) and [Basic Configuration](../getting-started/setup-basics/basic-configuration)).
+
+---
+
+## What You Will Achieve
+
+By the end of this guide, you will know how to:
+
+- Write mocks that improve test reliability and readability.
+- Reduce over-specification of expectations to avoid fragile tests.
+- Use mock strictness levels appropriately to balance noise and coverage.
+- Recognize and avoid mocking anti-patterns.
+
+---
+
+## Time Estimate
+
+About 20–30 minutes to read and absorb the concepts plus additional time to refactor existing mocks.
+
+---
+
+## Difficulty
+
+Intermediate – assumes working knowledge of GoogleMock basics and C++ testing.
+
+---
+
+# 1. Emphasize Testability with Interface Design
+
+Mocking is easiest when your code depends on interfaces (abstract classes), not concrete classes.
+
+### Why prioritize interfaces?
+
+- Interfaces enable simpler mocks with well-defined behaviors.
+- Reduces tight coupling between tests and real implementations.
+- Facilitates testing only the interaction points relevant to the unit under test.
+
+### Best practice workflow:
+
+1. Define interfaces for dependencies you’ll mock.
+2. Implement adapters that wrap concrete classes if needed.
+3. Use GoogleMock to mock these interfaces, focusing only on methods your code invokes.
+
+<Note>
+Avoid mocking concrete classes directly, especially if they are not designed with virtual methods. This leads to brittle tests and maintenance headaches. Instead, introduce interfaces you control.
+</Note>
+
+---
+
+# 2. Use `ON_CALL` for Default Behaviors, `EXPECT_CALL` for Specific Verifications
+
+GoogleMock distinguishes setting default behavior and setting expectations. Understanding the difference is critical to cleaner, less brittle tests.
+
+- **`ON_CALL`** defines what the mock method should return or do if called but doesn't require that it must be called.
+- **`EXPECT_CALL`** asserts that the method *must* be called with specific arguments, number of times, or order.
+
+### Best practice:
+
+- Use `ON_CALL` liberally in your test fixture to set reasonable defaults.
+- Use as few `EXPECT_CALL`s as necessary to verify actual behavior or critical interactions.
+
+### Why this matters
+
+Overusing `EXPECT_CALL` rigidly specifies your mock’s behavior, causing tests to fail on benign refactorings that should preserve behavior. Use `ON_CALL` to allow uninteresting calls without failures, reducing false positives.
+
+<Warning>
+Avoid adding unnecessary `EXPECT_CALL`s just to suppress uninteresting call warnings. Instead, prefer `NiceMock` or modify default actions.
+</Warning>
+
+---
+
+# 3. Manage Mock Strictness to Balance Feedback and Maintainability
+
+GoogleMock provides three main mock wrapper classes:
+
+- `NiceMock<T>` — Suppresses warnings on uninteresting calls. Recommended as default in most tests.
+- `NaggyMock<T>` — Prints warnings for uninteresting calls. Default mock behavior currently.
+- `StrictMock<T>` — Treats uninteresting calls as errors.
+
+### When to use which:
+
+| Mock Type   | Use Case                                                 |
+|-------------|----------------------------------------------------------|
+| `NiceMock`  | Default choice for cleaner test output and easier maintenance |
+| `NaggyMock` | Useful during development or debugging to catch unexpected calls |
+| `StrictMock`| For very strict tests requiring exact interaction verification; use sparingly |
+
+### How to use:
+
+```cpp
+using ::testing::NiceMock;
+
+NiceMock<MockFoo> mock_foo;
+EXPECT_CALL(mock_foo, DoThis());
+// No warnings if other methods are called unexpectedly
+```
+
+<Note>
+`NiceMock`, `NaggyMock`, and `StrictMock` only affect mock methods defined *directly* in the mock class with `MOCK_METHOD`. Methods inherited from base classes may not behave as expected.
+</Note>
+
+---
+
+# 4. Write Precise but Not Overly Constrained Expectations
+
+Determining the right level of expectation precision impacts test robustness.
+
+### Guidelines:
+
+- Match only arguments relevant to the tested behavior; use wildcards `_` elsewhere.
+- Prefer `EXPECT_CALL` with `.Times(AnyNumber())` if you don’t want to restrict call count.
+- Use sequences (`InSequence`) or partial orders (`After`) only if call ordering matters.
+- Use `.RetiresOnSaturation()` to expire expectations that should not repeatedly apply.
+
+### Example:
+
+```cpp
+EXPECT_CALL(mock, Process(::testing::_))  // Accept any argument.
+    .Times(AtLeast(1));                  // Called at least once.
+```
+
+### Avoid:
+
+- Expecting exact argument values if they are irrelevant to the test intent.
+- Over-constraining call order unless the implementation contract demands it.
+
+<Warning>
+Overly specific expectations cause brittle tests that break frequently during refactoring, increasing maintenance costs.
+</Warning>
+
+---
+
+# 5. Handle Move-Only Types Carefully
+
+If mocking methods involving move-only types (`std::unique_ptr`, etc.), follow GoogleMock’s recommended approach:
+
+- Use the `MOCK_METHOD` syntax as usual.
+- Return move-only objects via lambdas to produce new instances each call, instead of `Return()` which moves from a single instance.
+
+Example:
+
+```cpp
+EXPECT_CALL(mock, MakeBuzz("hello"))
+    .WillRepeatedly([](StringPiece text) {
+      return std::make_unique<Buzz>(AccessLevel::kInternal);
+    });
+```
+
+<Note>
+Avoid `Return(std::move(...))` repeatedly as the source is consumed after first use.
+</Note>
+
+---
+
+# 6. Delegate to Fakes or Real Objects When Appropriate
+
+Combining mocks with fake or real implementations can simplify complex behaviors and reduce test duplication.
+
+### Delegating to a fake:
+
+- Use `ON_CALL` to forward unhandled calls to a fake object.
+- Override specific calls with `EXPECT_CALL` as needed.
+
+### Delegating to the real implementation:
+
+- Define a mock that holds an instance of the real object.
+- Use `ON_CALL` with lambdas forwarding calls to the real instance.
+
+Example:
+
+```cpp
+ON_CALL(*this, DoThis).WillByDefault([this](int n) {
+  return real_.DoThis(n);
+});
+```
+
+<Info>
+Delegation is useful during incremental mocking or refactoring.
+</Info>
+
+---
+
+# 7. Simplify Complex Mock Interfaces
+
+If a mock method’s signature is complicated or involves arguments rarely checked in tests:
+
+- Consider wrapping the method in the mock with a simpler, test-friendly version.
+- Redirect calls from the original method to the simplified mock method.
+
+Example:
+
+```cpp
+class ScopedMockLog : public LogSink {
+ public:
+  void send(LogSeverity severity, const char* filename, const char* base,
+            int line, const tm* time, const char* msg, size_t len) override {
+    Log(severity, filename, std::string(msg, len));
+  }
+  MOCK_METHOD(void, Log, (LogSeverity severity, const std::string& file,
+                         const std::string& message));
+};
+```
+
+This approach avoids over-complicating matchers in your tests.
+
+---
+
+# 8. Avoid Common Mocking Anti-Patterns
+
+### Pitfalls to avoid:
+
+- Mocking classes you do not own without an intermediate interface.
+- Setting expectations after the mock has been exercised (undefined behavior).
+- Overuse of `StrictMock` leading to fragile tests.
+- Ignoring or suppressing warnings about uninteresting calls by adding meaningless `EXPECT_CALL`s.
+- Using mocks to replicate the full logic of real implementations rather than interactions.
+
+### How to recover:
+
+- Refactor to use interfaces.
+- Use `ON_CALL` for default behaviors.
+- Use `NiceMock` as the norm, reserving `StrictMock` for critical contracts.
+
+---
+
+# 9. Troubleshooting Common Issues
+
+| Symptom                                           | Cause & Solution                                              |
+|----------------------------------------------------|---------------------------------------------------------------|
+| Unexpected call warnings/errors                     | Missing or incorrect `EXPECT_CALL` or over-constrained matchers. Double-check argument matchers and call sequence.
+| Uninteresting call warnings                         | Mock method called without `EXPECT_CALL`. Use `NiceMock` or add `EXPECT_CALL(...).Times(AnyNumber())` only if intentional.
+| Tests failing due to strict mocks                    | Consider switching to `NiceMock` or reviewing if strictness is needed.
+| Test passes but real implementation fails           | Review delegation to real objects or fake implementations.
+| Compilation errors when mocking move-only types      | Use lambdas for `WillOnce` or `WillRepeatedly` instead of `Return()` for move-only values.
+
+---
+
+# 10. Next Steps & Additional Resources
+
+- Study the following topics to deepen your mocking skills:
+  - [Creating and Using Mock Objects](../guides/mocking-patterns/creating-mocks)
+  - [Setting Expectations and Actions](../guides/mocking-patterns/setting-expectations-actions)
+  - [Managing Nice, Naggy, and Strict Mocks](../guides/mocking-patterns/managing-uninteresting-calls)
+  - [Matchers and Custom Matcher Writing](../api-reference/matchers-and-advanced-assertions/using-matchers)
+
+- Learn about advanced mocking scenarios and how to integrate mocks effectively in larger test suites.
+
+---
+
+# References
+
+- [GoogleMock Cheat Sheet](https://google.github.io/googletest/gmock_cheat_sheet.html)
+- [gMock Cookbook](https://google.github.io/googletest/gmock_cook_book.html)
+- [gMock for Dummies](https://google.github.io/googletest/gmock_for_dummies.html)
+- [GoogleTest Primer](../getting-started/first-run-validation/writing-first-test) for initial testing guidance
+
+---
+
+# Summary
+
+This page focuses on best practices for mocking in C++ using GoogleMock. It helps you create maintainable mocks by emphasizing interface design, prudent expectation setting, and appropriate use of mock strictness levels. You will avoid pitfalls such as over-specification, brittle tests, and misuse of mock types while learning techniques like delegation, simplification of interfaces, and troubleshooting common mocking issues.
+
+---
+
+<CardGroup cols={2}>
+<Card title="Core Sections">
+- Interface design for testability
+- Using `ON_CALL` vs `EXPECT_CALL`
+- Managing mock strictness
+- Writing precise expectations
+- Delegating behaviors
+- Simplifying mock interfaces
+- Avoiding anti-patterns
+- Troubleshooting
+</Card>
+<Card title="Important Links">
+- [GoogleMock Cheat Sheet](https://google.github.io/googletest/gmock_cheat_sheet.html)
+- [Creating and Using Mock Objects](../guides/mocking-patterns/creating-mocks)
+- [Setting Expectations and Actions](../guides/mocking-patterns/setting-expectations-actions)
+- [Managing Nice, Naggy, and Strict Mocks](../guides/mocking-patterns/managing-uninteresting-calls)
+</Card>
+</CardGroup>

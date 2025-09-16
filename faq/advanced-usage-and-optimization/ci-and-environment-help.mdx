@@ -1,0 +1,171 @@
+---
+title: "CI Environment & Platform Issues"
+description: "Addresses questions and troubleshooting steps for running GoogleTest/GoogleMock reliably on diverse platforms or CI systems, including support for various compilers, OS environments, and build systems."
+---
+
+# CI Environment & Platform Issues FAQ
+
+This FAQ section addresses common challenges and practical solutions for running GoogleTest and GoogleMock reliably across different platforms, compilers, and Continuous Integration (CI) systems. It focuses on ensuring compatibility, smooth integration into diverse build and runtime environments, and guidance tailored to environment-specific issues.
+
+---
+
+## 1. Supported Compilers and Platforms
+
+### Q: Which platforms and compilers does GoogleTest support?
+
+GoogleTest supports major operating systems including Linux, Windows, and macOS. It requires a C++17 compatible compiler such as GCC, Clang, or MSVC. It also supports various build systems that comply with standard C++ toolchains.
+
+### Q: How can I verify my environment is compatible?
+
+Ensure your compiler supports C++17 since GoogleTest requires it. Use the [Supported Platforms & Requirements](overview/getting-started-integration/supported-platforms) documentation for detailed compatibility information. Verify environment variables, build tools, and runtime libraries are set correctly.
+
+<Check>
+Keep your build system updated and confirm your compiler version supports C++17 or later to avoid subtle incompatibilities.
+</Check>
+
+---
+
+## 2. Build and Link Configuration
+
+### Q: How do I integrate GoogleTest with popular build systems like CMake or Bazel?
+
+GoogleTest provides official CMakeLists.txt scripts and supports fetching via CMake's `FetchContent` API. In Bazel, it can be added as a workspace dependency with corresponding build targets. Consult the [Basic Configuration & Integration](getting-started/setup-basics/basic-configuration) guide for step-by-step integration instructions.
+
+### Q: How to avoid runtime conflicts on Windows related to dynamic vs static runtimes?
+
+GoogleTest by default links the C runtime statically, which may conflict with your project’s dynamic runtime linkage, causing linker errors. Use the CMake option `gtest_force_shared_crt` to align GoogleTest's linkage with your project's runtime settings.
+
+---
+
+## 3. Continuous Integration (CI) and Test Execution
+
+### Q: How can I run tests efficiently in CI environments?
+
+GoogleTest supports sharding tests across multiple machines or processes for parallel execution, controlled via `GTEST_TOTAL_SHARDS` and `GTEST_SHARD_INDEX` environment variables. Tests can be filtered using `--gtest_filter` to run subsets independently. Use `--gtest_repeat` for stress testing flaky tests.
+
+### Q: How to generate test results compatible with CI reporting tools?
+
+GoogleTest can output detailed **XML** and **JSON** reports suitable for CI dashboards and test aggregators via the `--gtest_output=xml:path` or `--gtest_output=json:path` flags. These include test durations, pass/fail counts, and metadata.
+
+---
+
+## 4. Managing Platform-Specific Issues
+
+### Q: What should I do when tests behave differently on different OSes?
+
+Differences may arise from OS-level threading, filesystem behavior, or signal handling. Use GoogleTest's macro controls to enable or disable platform-dependent features. Define custom macros like `GTEST_OS_STACK_TRACE_GETTER_` or override `TempDir()` behavior to adapt to specific platforms (see `custom/README.md`).
+
+### Q: How can I troubleshoot flaky or inconsistent test failures?
+
+Use `--gtest_repeat` in combination with `--gtest_break_on_failure` to reproduce rare failures. Verify tests are isolated and independent – GoogleTest creates a fresh fixture object per test. Review threading usage and resource sharing carefully, as concurrency bugs often cause flaky failures.
+
+---
+
+## 5. Environment Variables and Configuration
+
+### Q: Which environment variables affect GoogleTest behavior in CI environments?
+
+- `GTEST_FILTER`: Select which tests to run.
+- `GTEST_SHARD_INDEX` and `GTEST_TOTAL_SHARDS`: For sharding and parallel runs.
+- `GTEST_OUTPUT`: To specify output report format and destination.
+- `GTEST_FAIL_FAST`: Stop on first failure.
+
+Also, environment variables like `TEST_TMPDIR` and `TEST_SRCDIR` may influence test data directories used by GoogleTest utilities.
+
+### Q: How to override temporary and source directories?
+
+GoogleTest respects environment variables such as `TEST_TMPDIR` and `TEST_SRCDIR`. You can override the location of temporary directories by defining the macro `GTEST_CUSTOM_TEMPDIR_FUNCTION_`. Check `custom/README.md` for available macros related to customization.
+
+---
+
+## 6. Handling Global Test Environments
+
+### Q: What happens if a global test environment fails during setup?
+
+If a global environment registered via `AddGlobalTestEnvironment()` fails in its `SetUp()`, subsequent tests are either skipped or the entire run is affected depending on the failure severity.
+
+### Q: Can I skip all tests from a global environment?
+
+Yes, from the `SetUp()` method of a global environment, you can invoke `GTEST_SKIP()` to skip all tests in the environment gracefully. See test examples in `gtest_skip_in_environment_setup_test.cc`.
+
+---
+
+## 7. Common Troubleshooting Tips
+
+### Q: Why are some tests not detected or run in my CI?
+
+Ensure your test binaries are built with proper linkage to GoogleTest and that test registration runs correctly (macros like `TEST()` auto-register tests). Verify `GTEST_FILTER` is not excluding tests unintentionally and the test executable is run with readable and executable permissions.
+
+### Q: How to handle failures in subroutines or helper functions?
+
+Use `ASSERT_NO_FATAL_FAILURE()` to ensure that fatal failures inside helper calls are propagated properly without causing segmentation faults due to continuing execution after failures.
+
+### Q: What should I do if tests crash without clear messages?
+
+Enable debug flags like `--gtest_break_on_failure` and use sanitizers (e.g., AddressSanitizer) to detect invalid memory operations. Integrate sanitizer error handling to signal failures to GoogleTest.
+
+---
+
+## 8. Resources and Further Reading
+
+- [Supported Platforms & Requirements](overview/getting-started-integration/supported-platforms)
+- [Basic Configuration & Integration](getting-started/setup-basics/basic-configuration)
+- [Running and Configuring Tests](guides/core-workflows/running-and-configuring-tests)
+- [Global Test Environments](docs/reference/testing.md#Environment)
+- [Customization Points](googletest/include/gtest/internal/custom/README.md)
+- [Sample Tests and Test Environments](googletest/test/)
+
+---
+
+## Example: Registering Global Environment and Handling Setup Failure
+
+```cpp
+class MyEnv : public ::testing::Environment {
+public:
+  void SetUp() override {
+    // Setup code here
+    if (condition_failure) {
+      FAIL() << "Environment setup failed";
+    }
+  }
+  void TearDown() override {
+    // Cleanup code here
+  }
+};
+
+int main(int argc, char** argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  ::testing::AddGlobalTestEnvironment(new MyEnv);
+  return RUN_ALL_TESTS();
+}
+```
+
+If `SetUp()` fails fatally, no tests will run; non-fatal failures allow tests to proceed.
+
+---
+
+## Example: Running Tests with Sharding in CI
+
+```bash
+export GTEST_TOTAL_SHARDS=3
+export GTEST_SHARD_INDEX=0
+./my_test_binary
+
+# Run on shard 1 with index 1, shard 2 with index 2 similarly.
+```
+
+Tests are automatically split among shards.
+
+---
+
+## Pro Tips
+
+- Use `--gtest_output=xml:report.xml` to generate CI-compatible reports.
+- Use `SCOPED_TRACE` to add contextual information to assertion failures.
+- When running on Windows, ensure that runtime linkage options for GoogleTest and your code match to prevent linker errors.
+- For flaky tests, leverage `--gtest_repeat` and analyze reports for patterns.
+- To customize logging or temporary directories, define macros in the `custom/` include path.
+
+---
+
+For more support, visit the [Getting Help & Support](faq/support-community-and-resources/support-channels) documentation.

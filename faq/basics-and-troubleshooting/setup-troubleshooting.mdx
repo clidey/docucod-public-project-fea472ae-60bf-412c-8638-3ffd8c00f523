@@ -1,0 +1,176 @@
+---
+title: "Troubleshooting Setup & Integration"
+description: "Guidance for resolving integration problems, such as linker errors, failed test discovery, and environment-specific challenges when incorporating GoogleTest or GoogleMock into your build system or CI pipeline."
+---
+
+# Troubleshooting Setup & Integration
+
+This page offers detailed guidance to help you resolve common integration challenges encountered when incorporating GoogleTest and GoogleMock into your build system or continuous integration (CI) pipeline. From linker errors to failed test discovery and environment-specific quirks, these practical solutions ensure you achieve a smooth and reliable testing setup.
+
+---
+
+## 1. Common Integration Challenges
+
+### a. Linker Errors When Building Test Binaries
+
+**Problem:** You encounter errors such as "undefined reference to `RUN_ALL_TESTS`" or missing symbols related to GoogleTest or GoogleMock.
+
+**Cause:** This typically happens when your test executable is not linked against the correct GoogleTest or GoogleMock libraries.
+
+**Solution:**
+
+- When using CMake, ensure you link your test target against the appropriate libraries:
+  - Use `gtest_main` or `gmock_main` to automatically supply the `main()` function.
+  - Alternatively, if you provide your own `main()`, link against `gtest` or `gmock` (without `_main`).
+
+```cmake
+add_executable(your_test test.cpp)
+target_link_libraries(your_test PRIVATE gtest_main)
+
+# or for GoogleMock
+add_executable(your_test test.cpp)
+target_link_libraries(your_test PRIVATE gmock_main)
+```
+
+- Confirm that compiled object files and libraries are built with the same runtime flags and C++ standard (C++17 or later).
+- On Windows, verify runtime linkage consistency (static vs dynamic CRT). Set `gtest_force_shared_crt` in CMake if needed.
+
+### b. Duplicate or Multiple `main()` Definitions
+
+**Problem:** Linker errors arise indicating multiple definitions of `main`.
+
+**Cause:** This usually happens when linking both `gtest_main` and a custom `main()` implementation.
+
+**Solution:**
+
+- Link only one source of `main()`. If you wish to write a custom entry point (e.g., for specialized setup), do not link against `gtest_main` or `gmock_main`.
+- If you prefer the default `main()`, omit your own and link with `gtest_main` or `gmock_main`.
+
+### c. Test Discovery Fails: No Tests Run or Tests Not Found
+
+**Problem:** Your test binary runs successfully but reports "0 tests run" or "No tests found."
+
+**Cause:** GoogleTest did not detect the tests. This can result from:
+
+- Tests not being registered correctly due to macros being skipped by preprocessor.
+- Missing or wrong test macro usage (e.g., using `TEST()` instead of `TEST_F()` with fixtures incorrectly declared).
+- Linking issues preventing test symbols from being included.
+
+**Solution:**
+
+- Make sure test source files are compiled and linked properly into the test binary.
+- Use the correct test macros as per your fixture definitions.
+- Confirm no compilation errors or macro definition conflicts that could disable test registration.
+- Run the test executable with `--gtest_list_tests` to verify test discovery.
+
+```bash
+./your_test --gtest_list_tests
+```
+
+- Check for macro redefinition conflicts, especially if your project disables GoogleTest macros with flags like `-DGTEST_DONT_DEFINE_TEST=1`.
+
+### d. Initialization Issues in Custom `main()` Functions
+
+**Problem:** Tests run but behave unpredictably or fail to respond to command-line flags.
+
+**Cause:** Incorrect or missing calls to `testing::InitGoogleTest()` or `testing::InitGoogleMock()`.
+
+**Solution:**
+
+- Always call `testing::InitGoogleTest(&argc, argv);` or `testing::InitGoogleMock(&argc, argv);` before `RUN_ALL_TESTS()`.
+
+Example:
+
+```cpp
+int main(int argc, char** argv) {
+  testing::InitGoogleMock(&argc, argv);  // Initializes both GoogleMock and GoogleTest
+  return RUN_ALL_TESTS();
+}
+```
+
+- Note that `InitGoogleMock()` initializes GoogleTest internally, so you don't need to call both.
+
+### e. Platform-Specific Challenges
+
+- Embedded platforms like ESP8266, ESP32, or Arduino require alternative program entry points (`setup()` and `loop()` functions).
+
+- Some environments, such as QuRT, do not provide traditional `argc` and `argv`, so initialization patterns differ.
+
+Refer to the sample [`gmock_main.cc`](https://github.com/google/googletest/blob/main/googlemock/src/gmock_main.cc) for platform-specific entry point patterns.
+
+---
+
+## 2. Step-by-Step Troubleshooting Workflow
+
+Follow this process to methodically troubleshoot integration problems:
+
+<Steps>
+<Step title="Verify Build Configuration">
+Check that your build system includes GoogleTest/GoogleMock source or libraries, uses C++17, and matches runtime linkage across all dependencies.
+</Step>
+<Step title="Review Linking Settings">
+Ensure linking against the correct GoogleTest/GoogleMock libraries (`gtest_main`, `gmock_main`, etc.). Avoid multiple `main()` definitions.
+</Step>
+<Step title="Validate Test Registration">
+Run your test binary with `--gtest_list_tests` and verify tests are displayed.
+</Step>
+<Step title="Check Initialization Code">
+If using a custom `main()`, confirm correct calls to `InitGoogleTest()` or `InitGoogleMock()` with proper arguments.
+</Step>
+<Step title="Inspect Platform Compatibility">
+Adjust for any platform-specific entry points and initialization differences.
+</Step>
+<Step title="Enable Verbose Output">
+Use `--gmock_verbose=info` to get detailed runtime messages that may clarify test and mocking behavior.
+</Step>
+</Steps>
+
+---
+
+## 3. Best Practices to Avoid Integration Issues
+
+- **Use Prebuilt Main Functions:** Prefer linking against `gtest_main` or `gmock_main` unless a custom entry is required.
+- **Consistent Compiler Options:** Build GoogleTest, GoogleMock, and your tests with the same compiler flags, particularly the C++ standard and runtime linkage.
+- **Isolate Tests:** Ensure tests are correctly registered. Avoid macro conflicts by not defining conflicting preprocessor symbols.
+- **Leverage CMake or pkg-config:** Use official CMake integration or `pkg-config` files to manage dependencies and compilation/linking flags automatically.
+- **Keep GoogleTest Updated:** Use a modern release that supports your platform and build tools to reduce compatibility problems.
+
+---
+
+## 4. Troubleshooting Common Linker Errors
+
+| Error Message                                      | Cause                                              | Solution                                               |
+|--------------------------------------------------|----------------------------------------------------|--------------------------------------------------------|
+| `undefined reference to RUN_ALL_TESTS`            | Not linked against GoogleTest or GoogleMock        | Link with `gtest_main` or `gmock_main`                  |
+| Multiple `main` definitions found                 | Linked your own main and `gtest_main`/`gmock_main` | Use only one main source; remove one of the conflicting mains |
+| Mismatch detected for 'RuntimeLibrary' on Windows | Runtime linkage differs between libs and app       | Set CMake option `gtest_force_shared_crt ON` or unify linkage |
+| Symbols from GoogleMock not found                  | Missing link against `gmock` libraries              | Link with `gmock` and/or `gmock_main`                    |
+
+---
+
+## 5. Addressing Environment-Specific Challenges
+
+### Continuous Integration Systems
+
+- Ensure test executables return correct exit codes by honoring `RUN_ALL_TESTS()`'s return value.
+- Collect test metadata with `--gtest_output=xml:<path>` for CI reports.
+- Manage parallel test execution with test filtering and sharding options.
+
+### Embedded and Special Environments
+
+- Use platform-specific initialization patterns as outlined in `gmock_main.cc` and `gtest_main.cc` source files.
+- On platforms without argc/argv, call `testing::InitGoogleTest()` or `testing::InitGoogleMock()` without parameters.
+
+---
+
+## 6. Additional Resources
+
+- [GoogleTest Primer](https://google.github.io/googletest/primer.html) — Learn test basics.
+- [Integrating GoogleTest and GoogleMock Into Your Build](https://google.github.io/googletest/guides/advanced#integrating-into-builds) — Build system tips.
+- [Troubleshooting Common Setup Issues](https://google.github.io/googletest/getting-started/first-run-validation/troubleshooting-setup.html) — Setup problems guidance.
+- [GoogleMock README](https://github.com/google/googletest/blob/main/googlemock/README.md) — Mocking framework overview.
+- [gmock_main.cc Source](https://github.com/google/googletest/blob/main/googlemock/src/gmock_main.cc) — Example entry point implementations.
+
+<Note>
+Following the solutions and workflows here will empower you to diagnose and resolve most common setup and integration issues, enabling reliable test execution across diverse platforms and environments.
+</Note>

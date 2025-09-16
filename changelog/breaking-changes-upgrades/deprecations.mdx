@@ -1,0 +1,106 @@
+---
+title: "Deprecation Notices"
+description: "A curated list of deprecated features, APIs, or practices, along with information on recommended replacements and future removal timelines. Prepares users and maintainers to refactor before deprecation turns into removal."
+---
+
+# Deprecation Notices
+
+This page lists deprecated features, APIs, and practices in GoogleTest to help you identify areas requiring refactoring and to prepare for future removal. Staying informed about deprecations ensures your tests remain compatible and maintainable with upcoming GoogleTest releases.
+
+---
+
+## Overview of Deprecated Features
+
+GoogleTest occasionally deprecates features as part of its evolution to improve usability, performance, or maintainability. Deprecated features remain available for a limited period but are **not recommended** for new code and may be removed in future versions.
+
+### Key Principles for Deprecations
+
+- Deprecations come with recommended alternatives or replacements.
+- Deprecation warnings, if available, are issued during compilation or runtime.
+- Users should migrate away from deprecated features proactively.
+- Deprecated features related to internal implementation have no usage guarantees.
+
+---
+
+## Notable Deprecated APIs and Practices
+
+### 1. Legacy `MOCK_METHODn` Macros
+
+GoogleTest's `MOCK_METHODn` and `MOCK_CONST_METHODn` macros for mocking have been superseded by the more flexible and consistent `MOCK_METHOD` macro introduced in 2018. While still supported for backward compatibility, you should:
+
+- Prefer `MOCK_METHOD(return_type, method_name, (args...), (specifiers...));` in new mocks.
+- Refactor existing mocks to use the `MOCK_METHOD` macro for better clarity and feature support.
+
+See [Mocking Reference](reference/googlemock-mocking-apis/mock-class-definition.md#mock-method) and [gMock Cookbook](guides/mocking-patterns/creating-mocks.md#mock-method-macro) for migration details.
+
+### 2. TestCase Terminology
+
+The term `TestCase` has been deprecated in favor of `TestSuite` to align with modern conventions:
+
+- Use `TestSuite` APIs instead of `TestCase`.
+- Existing code using `TestCase` continues to work but emits deprecation warnings.
+
+See [Test & Fixture Definitions](api-reference/googletest-core-apis/test-case-definition.md) for updated terminology.
+
+### 3. Deprecated Macros for Test Definitions
+
+Several older macros to define tests may be deprecated or replaced:
+
+- `TEST_CASE` replaced by `TEST_SUITE` (for external usage; internal naming changes).
+- Some macro variants have been renamed or removed; consult the migration guides.
+
+### 4. Threading Support Macros
+
+Macros related to detecting threading capabilities or synchronization primitives, such as `GTEST_HAS_MUTEX_AND_THREAD_LOCAL_` or `GTEST_HAS_NOTIFICATION_`, may be deprecated as platform detection stabilizes and threading becomes standard.
+
+- Rely on automatic detection where possible.
+- Avoid manual overrides unless absolutely necessary.
+
+### 5. Legacy Matchers and Actions
+
+Older style matchers and action macros (`MOCK_GET`, legacy `ACTION` macros) may be deprecated in favor of newer, more type-safe implementations:
+
+- Prefer polymorphic and parameterized matcher macros.
+- Use lambdas and functors for actions instead of old macros.
+
+---
+
+## Migration and Removal Timelines
+
+Deprecation timelines are version-specific and communicated through GoogleTest release notes and migration guides. We recommend:
+
+- Monitoring the [Version History & Major Releases](changelog/release-highlights/version-history.md) regularly.
+- Reviewing [Breaking Changes and Migration Notes](changelog/breaking-changes-upgrades/breaking-changes.md) for detailed upgrade instructions.
+- Updating test code during regular maintenance cycles to prevent accumulation of technical debt.
+
+---
+
+## Best Practices to Manage Deprecation
+
+- **Prefer Modern APIs:** Use the latest supported macros and classes to ensure compatibility.
+- **Read Warnings:** Pay attention to compiler or runtime warnings about deprecated usage.
+- **Consult Documentation:** Always check official GoogleTest reference and guides for current best practices.
+- **Test Thoroughly:** After migration, run your test suite to verify that functionality remains intact.
+
+---
+
+## Common Pitfalls
+
+- Using deprecated macros may cause compiler warnings or errors in future releases.
+- Mixing legacy and modern APIs can lead to inconsistent test behavior.
+- Ignoring deprecation warnings may result in broken builds when upgrading GoogleTest.
+
+---
+
+## Further Reading and Resources
+
+- [Breaking Changes and Migration Notes](changelog/breaking-changes-upgrades/breaking-changes.md): Detailed list of breaking changes, including deprecated features.
+- [Mocking Reference](docs/reference/mocking.md): Updated macros and usage guidelines.
+- [gMock Cookbook](docs/gmock_cook_book.md): Practical recipes using modern mocking techniques.
+- [API Reference for Tests](api-reference/googletest-core-apis/test-case-definition.md): Current best practices for test and fixture definition.
+
+---
+
+Ensure to follow deprecation paths to maintain modern, reliable, and maintainable test suites with GoogleTest. Regularly visiting this page and related changelogs will keep your testing codebase healthy.
+
+---

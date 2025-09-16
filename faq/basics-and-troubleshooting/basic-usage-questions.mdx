@@ -1,0 +1,250 @@
+---
+title: "Basic Usage Questions"
+description: "Answers to the most common questions about installing, configuring, and using GoogleTest/GoogleMock. Clarifies misunderstandings around test and mock creation, and addresses common beginner challenges."
+---
+
+# Basic Usage Questions FAQ
+
+This FAQ addresses the most common questions new users have when starting with GoogleTest and GoogleMock. It focuses on installation, configuration, test and mock creation, usage patterns, and clarifications around key concepts to help you avoid typical beginner pitfalls.
+
+---
+
+## 1. Installation and Setup
+
+### Q: How do I install GoogleTest and GoogleMock?
+
+GoogleTest and GoogleMock come bundled together. You typically clone the googletest repository from <https://github.com/google/googletest> and build the libraries using CMake. Detailed instructions are available in the [Installation Guide](../getting-started/setup-basics/installation-guide.md).
+
+### Q: What are the platform and compiler requirements?
+
+GoogleTest requires a C++17-compliant compiler like GCC, Clang, or MSVC. It supports Linux, macOS, and Windows. For detailed compatibility and setup instructions, see [Supported Platforms & Requirements](../overview/getting-started-integration/supported-platforms.md).
+
+### Q: How do I integrate GoogleTest into my build system?
+
+GoogleTest can be integrated with CMake and Bazel easily using its standard build scripts. See the [Basic Configuration & Integration](../getting-started/setup-basics/basic-configuration.md) guide for step-by-step instructions.
+
+---
+
+## 2. Understanding Tests and Test Suites
+
+### Q: What is the difference between a Test, Test Suite, and Test Fixture?
+
+- **Test:** A single function that checks some piece of functionality.
+- **Test Suite:** A group of logically related tests, sharing a name.
+- **Test Fixture:** A class that provides setup and teardown for tests, enabling reuse of common data and initialization logic.
+
+GoogleTest is moving from the term "Test Case" to "Test Suite" to align with common terminology. See the [GoogleTest Primer](../docs/primer.md) for in-depth explanation.
+
+### Q: How do I write a simple test?
+
+Use the `TEST()` macro:
+
+```cpp
+TEST(MathTest, HandlesZeroInput) {
+  EXPECT_EQ(Factorial(0), 1);
+}
+```
+
+Make sure to place your tests in separate source files, build them with your test binary and run with `RUN_ALL_TESTS()`.
+
+### Q: When should I use `TEST_F()` instead of `TEST()`?
+
+Use `TEST_F()` when your test needs a test fixture, which prepares shared objects or common setup prior to each test. `TEST()` is for standalone tests without setup.
+
+Example using a fixture:
+
+```cpp
+class QueueTest : public testing::Test {
+ protected:
+  Queue<int> q_;
+  // Optional: override SetUp(), TearDown()
+};
+
+TEST_F(QueueTest, IsEmptyInitially) {
+  EXPECT_EQ(q_.size(), 0);
+}
+```
+
+---
+
+## 3. Assertions Basics
+
+### Q: What is the difference between `EXPECT_` and `ASSERT_` macros?
+
+- `EXPECT_` macros report nonfatal failures and allow the rest of the test to continue.
+- `ASSERT_` macros report fatal failures and abort the current function immediately.
+
+Use `ASSERT_` when further execution depends on the success of the check.
+
+### Q: Can I add custom failure messages?
+
+Yes. You can stream a message to the assertion using the `<<` operator:
+
+```cpp
+EXPECT_EQ(a, b) << "Values differ at index " << i;
+```
+
+### Q: Which assertion macros should I use for comparing strings?
+
+Use:
+- `EXPECT_STREQ` / `ASSERT_STREQ` for C-style strings (`const char*`)
+- `EXPECT_EQ` / `ASSERT_EQ` for `std::string` objects
+
+### Q: How do I verify that a function throws an exception?
+
+Use `EXPECT_THROW` to verify a function throws a specific exception;
+`EXPECT_ANY_THROW` to verify it throws any exception;
+`EXPECT_NO_THROW` to verify it does not throw.
+
+---
+
+## 4. Writing and Using Mocks with GoogleMock
+
+### Q: What is a mock object?
+
+A mock object is a test double that simulates a real object’s behavior, allowing you to set expectations on method calls (how many times, with which arguments, etc.) and to specify return values or side effects.
+
+### Q: How do I define a mock class?
+
+- Derive a class from the interface or base class you want to mock.
+- Use `MOCK_METHOD` macro inside your mock class to declare mocked methods.
+
+Example:
+
+```cpp
+class MockTurtle : public Turtle {
+ public:
+  MOCK_METHOD(void, PenUp, (), (override));
+  MOCK_METHOD(void, PenDown, (), (override));
+  MOCK_METHOD(void, Forward, (int distance), (override));
+  MOCK_METHOD(int, GetX, (), (const, override));
+};
+```
+
+Remember to place `MOCK_METHOD` in the `public:` section, even if the overridden method is protected or private.
+
+### Q: How do I set expectations on mocks?
+
+Use the `EXPECT_CALL` macro before exercising the mock in your test:
+
+```cpp
+EXPECT_CALL(turtle, PenDown())
+    .Times(AtLeast(1));
+```
+
+You can specify argument matchers (e.g., `_` for wildcard, `Eq(value)`, `Ge(n)`) and cardinalities (.Times()) to define how many calls are expected.
+
+### Q: What if I want the mock function to return specific values?
+
+Specify actions with `.WillOnce()` or `.WillRepeatedly()`:
+
+```cpp
+EXPECT_CALL(turtle, GetX())
+    .WillOnce(Return(100))
+    .WillRepeatedly(Return(200));
+```
+
+### Q: What if a mock method is called without any expectation?
+
+By default, this is an "uninteresting call" and will produce a warning but not a failure. You can suppress such warnings with `NiceMock<T>` or turn them into failures with `StrictMock<T>`.
+
+### Q: How do I specify call order?
+
+You can enforce call order using the `InSequence` helper or the `.After()` clause:
+
+```cpp
+{
+  InSequence seq;
+  EXPECT_CALL(mock, Func1());
+  EXPECT_CALL(mock, Func2());
+}
+```
+
+Or:
+
+```cpp
+auto e1 = EXPECT_CALL(mock, Func1());
+EXPECT_CALL(mock, Func2()).After(e1);
+```
+
+### Q: What are default actions, and how do I use `ON_CALL`?
+
+`ON_CALL` lets you specify default behaviors for mock methods when calls don't have explicit expectations with `EXPECT_CALL`. Unlike `EXPECT_CALL`, it doesn't set an expectation that the method will be called.
+
+Example:
+
+```cpp
+ON_CALL(mock, GetSize()).WillByDefault(Return(5));
+```
+
+---
+
+## 5. Common User Confusions and Best Practices
+
+### Q: Can I set expectations after calling the mock method?
+
+No. gMock requires you to set expectations with `EXPECT_CALL` before calling the mock methods. Setting them afterward leads to undefined behavior.
+
+### Q: How do I compare pointers in assertions?
+
+For pointers, `EXPECT_EQ` tests pointer equality (do they point to the same address). To compare pointed-to strings, use `EXPECT_STREQ`. To compare pointed-to values, use the `Pointee(matcher)` matcher.
+
+### Q: What does `.RetiresOnSaturation()` do?
+
+When a call expectation has a bounded number of calls, this clause causes the expectation to retire (become inactive) after the limit is reached. This lets other expectations that may match later succeed.
+
+### Q: How can I test functions with move-only types like `std::unique_ptr`?
+
+Define mock methods with the `MOCK_METHOD` macro as usual. Use lambdas to create actions that return new objects rather than reusing moved-from objects. For input arguments, you can pass move-only types directly.
+
+### Q: How do I mock non-virtual methods?
+
+You cannot mock non-virtual methods directly but can create a mock class unrelated to the real class but with matching method signatures. Then use templates or dependency injection to swap implementations at compile-time.
+
+---
+
+## 6. Troubleshooting Common Problems
+
+### Q: My `EXPECT_CALL` is not triggered or matched as expected. Why?
+
+- Ensure the `EXPECT_CALL` is set before the mock method is called.
+- Check argument matchers carefully; incorrect matchers cause mismatches.
+- Confirm call order constraints if used (`InSequence` or `.After()`).
+
+### Q: Why am I getting warnings about uninteresting/mock calls?
+
+- The mock method was called without expectation specification. To fix, add an `EXPECT_CALL` with `.Times(AnyNumber())` or wrap with `NiceMock`.
+
+### Q: My test fails due to excessive calls to a mock method.
+
+- The method was called more times than expected. Either increase `.Times()` or check your code for unintended extra calls.
+
+### Q: How to debug mock failures more effectively?
+
+Run tests with `--gmock_verbose=info` to see detailed matching attempts, call traces, argument values, and stack traces. This visibility can help clarify why expectations fail.
+
+---
+
+## 7. Additional Tips
+
+- **Set only necessary expectations** to avoid brittle tests.
+- Use **argument matchers** to make expectations flexible yet specific.
+- Prefer **`EXPECT_` assertions** for non-fatal checks to reveal multiple issues.
+- Use **test fixtures** to share setup and mocks across tests cleanly.
+- Regularly inspect **test output** for warnings and failures to catch interactions problems early.
+
+---
+
+## Related Documentation
+
+- [GoogleTest Primer](../docs/primer.md) — For foundational test writing skills.
+- [gMock for Dummies](../docs/gmock_for_dummies.md) — Beginner’s guide to mocking.
+- [Mocking Reference](../docs/reference/mocking.md) — Detailed info on mock macros.
+- [Assertions Reference](../docs/reference/assertions.md) — Complete list of assertions.
+- [Setting Expectations and Actions](../guides/mocking-patterns/setting-expectations-actions.md) — How to control mock behaviors.
+- [Managing Nice, Naggy, and Strict Mocks](../guides/mocking-patterns/managing-uninteresting-calls.md) — Controlling mock strictness.
+- [Troubleshooting Setup & Integration](../faq/basics-and-troubleshooting/setup-troubleshooting.md) — For installation issues.
+
+---
+
+Explore the GoogleTest and GoogleMock docs for a deeper understanding of techniques and best practices to maximize your testing reliability and maintainability.

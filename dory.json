@@ -1,0 +1,230 @@
+{
+  "background": {
+    "decoration": "gradient"
+  },
+  "colors": {
+    "dark": "#1E3A8A",
+    "light": "#60A5FA",
+    "primary": "#60A5FA"
+  },
+  "favicon": "/favicon.svg",
+  "fonts": {
+    "family": "Montserrat",
+    "format": "woff2",
+    "source": "https://fonts.gstatic.com/s/googlesansflex/v5/t5sJIQcYNIWbFgDgAAzZ34auoVyXkJCOvp3SFWJbN5hF8Ju1x6sKCyp0l9sI40swNJwGpVd4AZzz0v6lJ4qFXNZhGjLvDSkV4USKMo6qQzwliVdHAy9jxTDHg_ugnAakpwGc-cxgUqDCIUI.woff2"
+  },
+  "icons": {
+    "library": "fontawesome"
+  },
+  "logo": {
+    "dark": "./logo/logo.svg",
+    "light": "./logo/logo.svg"
+  },
+  "name": "GoogleTest",
+  "navigation": {
+    "tabs": [
+      {
+        "groups": [
+          {
+            "group": "Introduction \u0026 Product Value",
+            "pages": [
+              "overview/intro-and-value/what-is-googletest",
+              "overview/intro-and-value/value-proposition",
+              "overview/intro-and-value/who-uses-googletest"
+            ]
+          },
+          {
+            "group": "Architecture \u0026 Core Concepts",
+            "pages": [
+              "overview/architecture-concepts/system-architecture",
+              "overview/architecture-concepts/core-concepts-terminology",
+              "overview/architecture-concepts/feature-overview",
+              "overview/architecture-concepts/architecture-diagram"
+            ]
+          },
+          {
+            "group": "Getting Started \u0026 Ecosystem Integration",
+            "pages": [
+              "overview/getting-started-integration/supported-platforms",
+              "overview/getting-started-integration/integration-and-ecosystem"
+            ]
+          }
+        ],
+        "tab": "Overview"
+      },
+      {
+        "groups": [
+          {
+            "group": "Setup Essentials",
+            "pages": [
+              "getting-started/setup-basics/prerequisites-system-requirements",
+              "getting-started/setup-basics/installation-guide",
+              "getting-started/setup-basics/basic-configuration"
+            ]
+          },
+          {
+            "group": "First Test \u0026 Validation",
+            "pages": [
+              "getting-started/first-run-validation/writing-first-test",
+              "getting-started/first-run-validation/running-first-tests",
+              "getting-started/first-run-validation/troubleshooting-setup"
+            ]
+          }
+        ],
+        "tab": "Getting Started"
+      },
+      {
+        "groups": [
+          {
+            "group": "Core Testing Workflows",
+            "pages": [
+              "guides/core-workflows/writing-first-test",
+              "guides/core-workflows/organizing-tests",
+              "guides/core-workflows/running-and-configuring-tests"
+            ]
+          },
+          {
+            "group": "Mocking and Advanced Patterns",
+            "pages": [
+              "guides/mocking-patterns/creating-mocks",
+              "guides/mocking-patterns/setting-expectations-actions",
+              "guides/mocking-patterns/managing-uninteresting-calls",
+              "guides/mocking-patterns/best-practices-mocking"
+            ]
+          },
+          {
+            "group": "Parameterization and Advanced Scenarios",
+            "pages": [
+              "guides/parameterization-advanced/parameterized-tests-guide",
+              "guides/parameterization-advanced/death-tests-guide",
+              "guides/parameterization-advanced/integrating-into-builds"
+            ]
+          }
+        ],
+        "tab": "Guides"
+      },
+      {
+        "groups": [
+          {
+            "group": "GoogleTest Core APIs",
+            "pages": [
+              "api-reference/googletest-core-apis/test-case-definition",
+              "api-reference/googletest-core-apis/assertions-and-expectations",
+              "api-reference/googletest-core-apis/parameterized-typed-tests"
+            ]
+          },
+          {
+            "group": "Matchers \u0026 Advanced Assertions",
+            "pages": [
+              "api-reference/matchers-and-advanced-assertions/using-matchers",
+              "api-reference/matchers-and-advanced-assertions/writing-custom-matchers"
+            ]
+          },
+          {
+            "group": "GoogleMock Mocking APIs",
+            "pages": [
+              "api-reference/googlemock-mocking-apis/mock-class-definition",
+              "api-reference/googlemock-mocking-apis/setting-expectations-actions",
+              "api-reference/googlemock-mocking-apis/mock-strictness-helpers"
+            ]
+          },
+          {
+            "group": "Advanced Utilities \u0026 Internals",
+            "pages": [
+              "api-reference/advanced-utilities-internals/portability-and-configuration",
+              "api-reference/advanced-utilities-internals/internal-utilities"
+            ]
+          }
+        ],
+        "tab": "API Reference"
+      },
+      {
+        "groups": [
+          {
+            "group": "Core Architecture",
+            "pages": [
+              "concepts/core-architecture/xunit-model",
+              "concepts/core-architecture/mocking-infrastructure",
+              "concepts/core-architecture/test-discovery-execution"
+            ]
+          },
+          {
+            "group": "Assertions and Matchers",
+            "pages": [
+              "concepts/assertions-matchers/assertion-mechanics",
+              "concepts/assertions-matchers/matcher-framework",
+              "concepts/assertions-matchers/cardinalities-actions"
+            ]
+          },
+          {
+            "group": "Test Parameterization \u0026 Scalability",
+            "pages": [
+              "concepts/test-parameterization-scalability/parameterized-tests",
+              "concepts/test-parameterization-scalability/performance-scalability"
+            ]
+          }
+        ],
+        "tab": "Concepts"
+      },
+      {
+        "groups": [
+          {
+            "group": "Release Highlights",
+            "pages": [
+              "changelog/release-highlights/version-history",
+              "changelog/release-highlights/new-features"
+            ]
+          },
+          {
+            "group": "Breaking Changes \u0026 Upgrade Guidance",
+            "pages": [
+              "changelog/breaking-changes-upgrades/breaking-changes",
+              "changelog/breaking-changes-upgrades/deprecations",
+              "changelog/breaking-changes-upgrades/upgrade-guides"
+            ]
+          },
+          {
+            "group": "Bug Fixes \u0026 Patches",
+            "pages": [
+              "changelog/bugfixes-patches/bug-fixes",
+              "changelog/bugfixes-patches/platform-support"
+            ]
+          }
+        ],
+        "tab": "Changelog"
+      },
+      {
+        "groups": [
+          {
+            "group": "Getting Started \u0026 Troubleshooting",
+            "pages": [
+              "faq/basics-and-troubleshooting/basic-usage-questions",
+              "faq/basics-and-troubleshooting/setup-troubleshooting",
+              "faq/basics-and-troubleshooting/common-test-failures"
+            ]
+          },
+          {
+            "group": "Advanced Usage \u0026 Optimization",
+            "pages": [
+              "faq/advanced-usage-and-optimization/performance-optimization-faq",
+              "faq/advanced-usage-and-optimization/mocking-edge-cases",
+              "faq/advanced-usage-and-optimization/ci-and-environment-help"
+            ]
+          },
+          {
+            "group": "Support, Community \u0026 Resources",
+            "pages": [
+              "faq/support-community-and-resources/support-channels",
+              "faq/support-community-and-resources/contributing-and-community-faq"
+            ]
+          }
+        ],
+        "tab": "FAQ"
+      }
+    ]
+  },
+  "styling": {
+    "codeblocks": "dark",
+    "eyebrows": "breadcrumbs"
+  }
+}

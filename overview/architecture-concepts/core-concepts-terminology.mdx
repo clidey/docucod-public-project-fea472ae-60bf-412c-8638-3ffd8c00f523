@@ -1,0 +1,274 @@
+---
+title: "Core Concepts & Terminology"
+description: "Get up to speed on the fundamental ideas—tests, fixtures, assertions, matchers, mocks, parameterized and typed tests, and death tests. Each concept is explained in context, mapped to typical developer workflows."
+---
+
+# Core Concepts & Terminology
+
+## Introduction
+
+This page introduces the fundamental concepts you'll encounter in GoogleTest, guiding you from understanding individual tests to more advanced constructs like fixtures, assertions, matchers, mocks, parameterized tests, typed tests, and death tests. Each concept is presented in the context of typical developer workflows, helping you grasp their purpose and practical use.
+
+---
+
+## Tests and Test Suites
+
+- **Test**: The smallest unit of testing in GoogleTest. A *test* is a function that contains one or more assertions to verify code behavior. Tests do not return values but signal success or failure via assertions.
+
+- **Test Suite**: A collection of related tests, grouped together for organization. Tests in the same suite usually test the same component or feature set.
+
+Every test is defined by a pair of names: the *test suite name* and the *test name*. For example:
+
+```cpp
+TEST(MyComponentTest, HandlesEmptyInput) {
+  // test code...
+}
+```
+
+Here, `MyComponentTest` is the test suite, and `HandlesEmptyInput` is the test.
+
+### Principles
+
+- Tests are designed to run independently and repeatedly.
+- Test suites group tests logically to reflect the code structure.
+- Running tests produces detailed reports showing successes, failures, and skipped tests.
+
+---
+
+## Test Fixtures
+
+When multiple tests require the same configuration or set of objects, *test fixtures* provide a way to reuse that setup code efficiently.
+
+### What is a Test Fixture?
+
+A test fixture is a C++ class derived from `testing::Test` that contains shared objects and setup/teardown logic.
+
+### Why Use Fixtures?
+
+- Share expensive setup operations across multiple tests.
+- Avoid duplication and make tests easier to maintain.
+- Cleanly isolate test data.
+
+### How Fixtures Work
+
+1. Define a fixture class:
+
+```cpp
+class QueueTest : public testing::Test {
+ protected:
+  QueueTest() {
+    // Setup code shared by tests
+    q1_.Enqueue(1);
+    q2_.Enqueue(2);
+  }
+
+  Queue<int> q0_;
+  Queue<int> q1_;
+  Queue<int> q2_;
+};
+```
+
+2. Write tests that use the fixture with `TEST_F`:
+
+```cpp
+TEST_F(QueueTest, IsInitiallyEmpty) {
+  EXPECT_EQ(q0_.size(), 0);
+}
+
+TEST_F(QueueTest, EnqueueDequeue) {
+  int* n = q1_.Dequeue();
+  ASSERT_NE(n, nullptr);
+  EXPECT_EQ(*n, 1);
+  delete n;
+}
+```
+
+Each test gets a fresh instance of the fixture, ensuring no cross-test pollution.
+
+---
+
+## Assertions
+
+Assertions are the core way tests verify conditions. They check whether an expression holds true and report failure information if it doesn't.
+
+### Types of Assertions
+
+- **Fatal assertions (`ASSERT_*`)**: Abort the current test immediately if they fail.
+- **Nonfatal assertions (`EXPECT_*`)**: Record the failure but allow the test to continue.
+
+This distinction enables tests to either fail fast or continue to report multiple errors in a single test run.
+
+### Basic Assertions
+
+- `EXPECT_TRUE(condition)`: Check a condition is true.
+- `EXPECT_FALSE(condition)`: Check a condition is false.
+- `EXPECT_EQ(val1, val2)`, `ASSERT_EQ(val1, val2)`: Check for equality.
+- `EXPECT_NE`, `ASSERT_NE`: Check for inequality.
+- Relational comparisons: `EXPECT_LT`, `EXPECT_LE`, `EXPECT_GT`, `EXPECT_GE`.
+- String comparisons: `EXPECT_STREQ`, `EXPECT_STRNE`, `EXPECT_STRCASEEQ`, `EXPECT_STRCASENE`.
+
+### Assertions with Messages
+
+You can attach custom messages for clarity:
+
+```cpp
+EXPECT_EQ(x, y) << "x and y should be equal";
+```
+
+---
+
+## Matchers
+
+Matchers provide a flexible and readable way to specify complex expectations beyond basic assertions.
+
+### Using Matchers
+
+Matchers are used with the `EXPECT_THAT(value, matcher)` syntax.
+
+Example:
+
+```cpp
+#include <gmock/gmock.h>
+using ::testing::HasSubstr;
+using ::testing::MatchesRegex;
+
+EXPECT_THAT(str, HasSubstr("needle"));
+EXPECT_THAT(text, MatchesRegex("\\w*\\d+"));
+```
+
+Matchers improve assertion messages and allow combining conditions logically.
+
+### Common Matchers
+
+- `StartsWith(prefix)`
+- `EndsWith(suffix)`
+- `Contains(substring)`
+- `MatchesRegex(regex)`
+- `AllOf(m1, m2, ...)`
+- `AnyOf(m1, m2, ...)`
+
+---
+
+## Mocks
+
+GoogleTest integrates tightly with GoogleMock to facilitate mocking and verifying behavior in complex systems.
+
+### What Are Mocks?
+
+Mocks simulate objects or functions, allowing tests to impose expectations on interactions and verify that the code under test behaves correctly.
+
+---
+
+## Parameterized Tests
+
+Parameterized tests enable running the same test logic with different input data, avoiding duplication while increasing test coverage.
+
+### Value-Parameterized Tests
+
+Define a test fixture that inherits from `testing::TestWithParam<T>`, where `T` is the parameter type. Use `TEST_P` to declare tests and `INSTANTIATE_TEST_SUITE_P` to provide parameter sets.
+
+Example:
+
+```cpp
+class FooTest : public testing::TestWithParam<int> {};
+
+TEST_P(FooTest, IsEven) {
+  int n = GetParam();
+  EXPECT_EQ(n % 2, 0);
+}
+
+INSTANTIATE_TEST_SUITE_P(EvenNumbers, FooTest, testing::Values(2, 4, 6));
+```
+
+### Typed Tests
+
+Typed tests allow running the same test logic across a list of types, useful for testing template classes or interfaces.
+
+You define a fixture class template and associate it with a list of types using `TYPED_TEST_SUITE`. Use `TYPED_TEST` to write tests.
+
+Example:
+
+```cpp
+template <typename T>
+class MyTypedTest : public testing::Test {};
+
+using MyTypes = testing::Types<int, double>;
+TYPED_TEST_SUITE(MyTypedTest, MyTypes);
+
+TYPED_TEST(MyTypedTest, ZeroInitialization) {
+  TypeParam value{};
+  EXPECT_EQ(value, 0);
+}
+```
+
+---
+
+## Death Tests
+
+Death tests verify that code terminates the process under particular failure conditions, which is vital for testing assertions and program invariants that abort execution.
+
+### How Death Tests Work
+
+Death tests run the test code in a separate child process to safely check for termination and output matching.
+
+### Writing Death Tests
+
+Use `EXPECT_DEATH(statement, regex)` or `ASSERT_DEATH(...)`:
+
+```cpp
+TEST(MyDeathTest, AbortOnNull) {
+  EXPECT_DEATH({ Foo(nullptr); }, "Null pointer passed");
+}
+```
+
+### Important Notes
+
+- Death tests are run in isolation; side effects are not observed by the parent process.
+- Death tests are recommended to be grouped in test suites named with the suffix `DeathTest` to ensure correct execution ordering.
+- GoogleTest can run death tests in a thread-safe mode for environments with multiple threads at startup.
+
+---
+
+## Summary
+
+This page equips you with the core concepts and terminology essential for effectively using GoogleTest. Understanding tests, test suites, fixtures, assertions, matchers, mocks, parameterized and typed tests, and death tests helps you write scalable, readable, and robust C++ tests.
+
+Further exploration of these topics is encouraged in dedicated guides and references.
+
+---
+
+## Recommended Next Steps
+
+Explore these key documentation pages to deepen your understanding:
+- [GoogleTest Primer](primer.md): Basics on writing tests and assertions.
+- [Assertions Reference](reference/assertions.md): Comprehensive list of assertion macros.
+- [Advanced GoogleTest Topics](advanced.md): Learn how to use parameterized tests, typed tests, death tests, and more.
+- [Using Built-in Matchers](api-reference/matchers-and-advanced-assertions/using-matchers): Enhance your assertions with expressive matchers.
+
+
+---
+
+<Accordion title="Quick Reference: Test Macros">
+`TEST(SuiteName, TestName)` - Define a basic test
+
+`TEST_F(FixtureName, TestName)` - Define a test that uses a test fixture
+
+`TEST_P(FixtureName, TestName)` - Define a value-parameterized test
+
+`INSTANTIATE_TEST_SUITE_P(Name, FixtureName, Generator)` - Create instances for parameterized tests
+
+`EXPECT_DEATH(statement, regex)` - Assert that a statement causes the program to die
+
+</Accordion>
+
+<Accordion title="Tip: Avoid Underscores in Test and Suite Names">
+Multiple underscores in test or suite names can cause issues due to generated class names. Avoid underscores `_` in `TEST` and `TEST_F` names to prevent conflicts.
+
+See the [FAQ on Naming](faq.md#why-should-test-suite-names-and-test-names-not-contain-underscore).
+</Accordion>
+
+<Accordion title="Common Pitfalls">
+- Using assertions inside functions that do not return void: fatal assertions like `ASSERT_*` must only be used in void-returning functions.
+- Forgetting to instantiate value-parameterized tests with `INSTANTIATE_TEST_SUITE_P`.
+- Running threaded code outside of a death test can cause death tests to hang or fail.
+</Accordion>

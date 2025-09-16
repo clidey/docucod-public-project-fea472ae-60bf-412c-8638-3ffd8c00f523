@@ -1,0 +1,186 @@
+---
+title: "Features at a Glance"
+description: "Browse a concise summary of GoogleTest’s overarching capabilities: assertion types, test discovery, user-defined assertions, parameterized and typed testing, mocking, and extended reporting. Ideal for quick comparison and orientation."
+---
+
+# Features at a Glance
+
+Explore a concise summary of GoogleTest’s essential capabilities that empower developers to write expressive, maintainable, and scalable C++ tests. This overview is perfect for quick orientation or comparing GoogleTest's features with other frameworks.
+
+---
+
+## Comprehensive Assertion Types
+
+GoogleTest offers a rich set of assertion macros that help verify conditions, equality, inequality, exceptions, and more. Each assertion comes in two variants:
+
+- `EXPECT_*`: reports failures but allows the test to continue
+- `ASSERT_*`: reports failures and aborts the current test function immediately
+
+This design lets you control the granularity of your test validations and failure handling.
+
+**Example:**
+
+```cpp
+EXPECT_EQ(actual_value, expected_value) << "Mismatch at index " << i;
+ASSERT_TRUE(pointer != nullptr) << "Pointer should not be null";
+```
+
+*For extensive details on assertions, see the [Assertions Reference](../reference/assertions.md)*.
+
+---
+
+## Automatic Test Discovery and Execution
+
+GoogleTest automatically discovers all tests defined using macros such as `TEST()`, `TEST_F()`, `TEST_P()`, and runs them with no extra registration required. You can:
+
+- Organize tests into suites that logically group related functionality
+- Leverage test fixtures (`TEST_F`) to share common setup/teardown code
+- Use parameterized tests (`TEST_P`) for testing multiple inputs with shared logic
+
+**Example:**
+
+```cpp
+TEST(MathTest, Addition) {
+  EXPECT_EQ(Add(2, 2), 4);
+}
+
+class QueueTest : public ::testing::Test {
+ protected:
+  void SetUp() override { /* common setup */ }
+};
+
+TEST_F(QueueTest, EnqueueDequeue) {
+  Queue<int> q;
+  q.Enqueue(5);
+  EXPECT_EQ(q.Dequeue(), 5);
+}
+```
+
+---
+
+## User-Defined Assertions and Custom Matchers
+
+GoogleTest enables the creation of expressive, reusable custom assertions and matchers for complex testing scenarios:
+
+- **Custom Assertions**: Define predicate functions that return `testing::AssertionResult` to provide richer failure messages.
+- **Matchers**: Use built-in or write custom matchers with `EXPECT_THAT()` to make assertions that read like natural language.
+
+**Example:**
+
+```cpp
+// Custom predicate
+testing::AssertionResult IsEven(int n) {
+  if (n % 2 == 0) return testing::AssertionSuccess();
+  return testing::AssertionFailure() << n << " is odd";
+}
+
+TEST(NumberTest, CheckEven) {
+  EXPECT_PRED1(IsEven, 4);  // passes
+  EXPECT_PRED1(IsEven, 5);  // fails with message
+}
+
+// Using built-in matcher
+EXPECT_THAT(my_string, ::testing::StartsWith("Hello"));
+```
+
+*Learn more in [Matchers Reference](../reference/matchers-and-advanced-assertions/using-matchers.md) and [Writing Custom Matchers](../api-reference/matchers-and-advanced-assertions/writing-custom-matchers.md)*.
+
+---
+
+## Parameterized and Typed Testing
+
+Scale your tests efficiently with GoogleTest's powerful parameterization support:
+
+- **Value-Parameterized Tests (`TEST_P`)**: Write a single test logic run against multiple data values.
+- **Typed Tests (`TYPED_TEST`)** and **Type-Parameterized Tests (`TYPED_TEST_P`)**: Run the same test logic across various types, ensuring interface compliance and broad coverage.
+
+**Example:**
+
+```cpp
+class MyTestSuite : public testing::TestWithParam<int> {};
+
+TEST_P(MyTestSuite, IsPositive) {
+  EXPECT_GT(GetParam(), 0);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    PositiveNumbers, MyTestSuite,
+    testing::Values(1, 2, 3, 10));
+
+// Typed test example
+template <typename T>
+class FooTest : public testing::Test {};
+
+TYPED_TEST_SUITE(FooTest, ::testing::Types<int, double>);
+
+TYPED_TEST(FooTest, DefaultConstructible) {
+  TypeParam value{};  // test default-constructibility
+  (void)value;
+}
+```
+
+*See the [Advanced Guide](../advanced.md#value-parameterized-tests) and [Typed Tests](../advanced.md#typed-tests) for deeper understanding.*
+
+---
+
+## Robust Mocking Integration
+
+GoogleTest integrates seamlessly with GoogleMock, allowing you to create mocks for complex dependencies and verify interactions:
+
+- Define mock classes and methods
+- Set expectations on calls
+- Control call behaviors
+- Manage mock strictness (Nice, Naggy, and Strict mocks)
+
+This powerful mocking framework simplifies testing of complex or external interfaces.
+
+*For detailed guidance, refer to the [Mocking Guides](../guides/mocking-patterns/creating-mocks.md) and [API Reference: GoogleMock Mocking APIs](../api-reference/googlemock-mocking-apis/mock-class-definition.md)*.
+
+---
+
+## Extended Reporting and Test Metadata
+
+GoogleTest provides detailed and accessible output:
+
+- Color-coded terminal output for easy scanning
+- XML and JSON reporting for CI pipelines
+- Support for recording test properties (`RecordProperty()`) for flexible metadata tagging
+
+This helps teams automate testing, gather analytics, and understand test outcomes quickly.
+
+**Tip:** Redirect logs and separate GoogleTest outputs using shell redirection to improve readability.
+
+---
+
+## Practical Tips and Best Practices
+
+- **Avoid underscores in test and test suite names:** to prevent naming conflicts or reserved naming usage.
+- **Use test fixtures for shared resource management:** ensure isolation and reduce flakiness.
+- **Choose assertions wisely:** use `ASSERT_*` to abort early when continuation is meaningless.
+- **Leverage parameterized testing:** reduce code duplication and enhance coverage.
+- **Use `RUN_ALL_TESTS()` return value:** Reflect test success or failure correctly in your `main()`.
+
+---
+
+Feel empowered to navigate GoogleTest’s capabilities confidently and efficiently to write robust tests that scale with your project’s complexity.
+
+---
+
+## Related Documentation
+
+- [What is GoogleTest?](../overview/intro-and-value/what-is-googletest.md)
+- [Product Value & Key Benefits](../overview/intro-and-value/value-proposition.md)
+- [Core Concepts & Terminology](../overview/architecture-concepts/core-concepts-terminology.md)
+- [Writing Your First GoogleTest](../guides/core-workflows/writing-first-test.md)
+- [Using Parameterized and Typed Tests](../guides/parameterization-advanced/parameterized-tests-guide.md)
+
+---
+
+## Next Steps
+
+To put these features into action, head to the [Getting Started](../getting-started/setup-basics/prerequisites-system-requirements.md) and [Installation Guide](../getting-started/setup-basics/installation-guide.md), then advance toward hands-on tutorials like [Writing Your First GoogleTest](../guides/core-workflows/writing-first-test.md).
+
+
+---
+
+

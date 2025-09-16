@@ -1,0 +1,384 @@
+---
+title: "Installation Guide (Linux, macOS, Windows)"
+description: "Step-by-step instructions for installing and building GoogleTest and GoogleMock on all major platforms, covering both CMake and Bazel workflows. Includes how to fetch the code, set up dependencies, and compile the libraries to get started quickly."
+---
+
+# Installation Guide (Linux, macOS, Windows)
+
+Step-by-step instructions for installing and building GoogleTest and GoogleMock across Linux, macOS, and Windows platforms. This guide covers both CMake and Bazel workflows, including fetching the latest code, setting up dependencies, compiling the libraries, and validating a successful build.
+
+---
+
+## 1. Prerequisites & System Requirements
+
+Before starting the installation, ensure your environment meets the following requirements:
+
+- **Operating Systems Supported**: Linux, macOS, Windows
+- **Compiler Requirements**:
+  - Must support **C++17** or higher
+  - Compatible compilers include GCC (7+), Clang (7+), and MSVC 2017 or newer
+- **Build Tools**:
+  - For CMake builds: CMake version 3.14 or later
+  - For Bazel builds: Bazel version 7.0 or later
+- **Dependencies**:
+  - Internet access to fetch source if using online repository methods
+  - For multi-threaded tests, ensure availability of pthreads on Unix platforms
+
+<Tip>
+If uncertain about platform compatibility, refer to the [Supported Platforms & Requirements](https://github.com/google/googletest/blob/main/docs/platforms.md) documentation.
+</Tip>
+
+## 2. Installation Instructions
+
+GoogleTest can be installed using either **CMake** or **Bazel**, depending on your build environment and preferences.
+
+### A. Building with CMake
+
+CMake offers a cross-platform way to build GoogleTest and GoogleMock.
+
+#### Step 1: Fetch the Source Code
+
+Clone the repository and switch to the latest stable version tag (e.g., `v1.17.0`):
+
+```bash
+git clone https://github.com/google/googletest.git -b v1.17.0
+dcd googletest
+```
+
+#### Step 2: Create and Enter a Build Directory
+
+Create a separate build directory to keep your source directory clean:
+
+```bash
+mkdir build
+cd build
+```
+
+#### Step 3: Generate Build Files with CMake
+
+To build **both** GoogleTest and GoogleMock (default):
+
+```bash
+cmake ..
+```
+
+To build **only** GoogleTest (without GoogleMock):
+
+```bash
+cmake .. -DBUILD_GMOCK=OFF
+```
+
+#### Step 4: Build the Libraries
+
+- On Linux/macOS (with Make):
+
+```bash
+make
+```
+
+- On Windows (Visual Studio):
+
+Open the generated `.sln` file in Visual Studio and build the solution.
+
+- On macOS (Xcode):
+
+Open the generated `.xcodeproj` file in Xcode and build.
+
+#### Step 5: (Optional) Install GoogleTest
+
+To install globally (requires administrator permissions):
+
+```bash
+sudo make install
+```
+
+This installs headers and libraries under `/usr/local/` by default.
+
+<Warning>
+Make sure you have the necessary privileges to install system-wide.
+</Warning>
+
+#### Step 6: Verify the Installation
+
+Check that the libraries (`libgtest.a`, `libgmock.a`) and headers are in standard locations, or build your project linking directly to these build outputs before installing.
+
+---
+
+### B. Incorporating GoogleTest into Your Existing CMake Project
+
+There are multiple approaches depending on workflow preferences:
+
+- Use `find_package` if GoogleTest is already installed on your system.
+- Use `add_subdirectory()` to integrate GoogleTest source code directly into your build.
+- Use `FetchContent` module to download GoogleTest during configure time.
+
+#### Example: FetchContent Declaration
+
+```cmake
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/5376968f6948923e2411081fd9372e71a59d8e77.zip
+)
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE) # Required for Windows dynamic runtimes
+FetchContent_MakeAvailable(googletest)
+
+add_executable(example example.cpp)
+target_link_libraries(example gtest_main)
+add_test(NAME example_test COMMAND example)
+```
+
+<Tip>
+`gtest_force_shared_crt` ensures that runtime libraries between your project and GoogleTest don’t conflict on Windows.
+</Tip>
+
+---
+
+### C. Building with Bazel
+
+Bazel is GoogleTest’s native build system, ideal for large and complex projects.
+
+#### Step 1: Prepare a Bazel Workspace
+
+Create a new directory and navigate into it:
+
+```bash
+mkdir my_workspace && cd my_workspace
+```
+
+Create a `MODULE.bazel` file to declare GoogleTest as a dependency:
+
+```python
+# MODULE.bazel
+
+bazel_dep(name = "googletest", version = "1.17.0")
+```
+
+#### Step 2: Write your Test Code
+
+Create `hello_test.cc` with this sample content:
+
+```cpp
+#include <gtest/gtest.h>
+
+TEST(HelloTest, BasicAssertions) {
+  EXPECT_STRNE("hello", "world");
+  EXPECT_EQ(7 * 6, 42);
+}
+```
+
+#### Step 3: Create the Bazel Build File
+
+Create a `BUILD` file specifying your test:
+
+```python
+cc_test(
+    name = "hello_test",
+    size = "small",
+    srcs = ["hello_test.cc"],
+    deps = [
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+```
+
+#### Step 4: Build and Run the Tests
+
+Run the test with C++17 standard:
+
+```bash
+bazel test --cxxopt=-std=c++17 --test_output=all //:hello_test
+```
+
+<BuiltTip>
+Bazel automatically manages dependencies and uses the correct compiler settings ensuring consistent builds.
+</BuiltTip>
+
+---
+
+## 3. Configuration & Build Options
+
+### C++ Standard
+
+GoogleTest requires C++17 or later. Enforce this in your build system:
+
+- In CMake: `set(CMAKE_CXX_STANDARD 17)` and `set(CMAKE_CXX_STANDARD_REQUIRED ON)`
+- In Bazel: Use `--cxxopt` to specify `-std=c++17` (Clang/GCC) or `/std:c++17` (MSVC)
+
+### Multi-threading Support
+
+GoogleTest supports multi-threaded tests using pthreads on Unix-like systems. If detection fails, manually enable or disable pthread usage using compiler flags:
+
+```bash
+-DGTEST_HAS_PTHREAD=1
+```
+
+or
+
+```bash
+-DGTEST_HAS_PTHREAD=0
+```
+
+Ensure you link with pthread library as required, typically handled automatically by CMake.
+
+### Shared Library Support
+
+To build GoogleTest as a shared library (DLL on Windows):
+
+- Add `-DGTEST_CREATE_SHARED_LIBRARY=1` to compiler flags.
+- For tests linking to the shared library, add `-DGTEST_LINKED_AS_SHARED_LIBRARY=1`.
+
+<Note>
+While static linkage is simpler and common, shared libraries can reduce binary sizes and improve runtime loading performance.
+</Note>
+
+### Avoiding Macro Name Conflicts
+
+If GoogleTest macros conflict with other libraries, redefine macros using compiler flags:
+
+```bash
+-DGTEST_DONT_DEFINE_TEST=1
+```
+
+This requires using the `GTEST_` prefix in your test code, e.g., `GTEST_TEST` instead of `TEST`.
+
+---
+
+## 4. First Build and Validation
+
+After installation, verify your setup by building and running a simple test.
+
+### Using CMake Quickstart Example
+
+Create a minimal project following these steps:
+
+```bash
+mkdir my_project && cd my_project
+```
+
+Create `CMakeLists.txt`:
+
+```cmake
+cmake_minimum_required(VERSION 3.14)
+project(my_project)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+)
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
+enable_testing()
+
+add_executable(hello_test hello_test.cc)
+target_link_libraries(hello_test GTest::gtest_main)
+
+include(GoogleTest)
+gtest_discover_tests(hello_test)
+```
+
+Create `hello_test.cc`:
+
+```cpp
+#include <gtest/gtest.h>
+
+TEST(HelloTest, BasicAssertions) {
+  EXPECT_STRNE("hello", "world");
+  EXPECT_EQ(7 * 6, 42);
+}
+```
+
+Build and run:
+
+```bash
+cmake -S . -B build
+cmake --build build
+cd build && ctest
+```
+
+Expected output:
+
+```
+1/1 Test #1: HelloTest.BasicAssertions ........   Passed
+
+100% tests passed, 0 tests failed out of 1
+```
+
+This confirms GoogleTest is successfully built and functioning.
+
+### Using Bazel Quickstart Example
+
+Run:
+
+```bash
+bazel test --cxxopt=-std=c++17 --test_output=all //:hello_test
+```
+
+Expect output showing your test passed, confirming your Bazel build and GoogleTest integration.
+
+---
+
+## 5. Troubleshooting Common Issues
+
+<AccordionGroup title="Installation and Build Issues">
+<Accordion title="CMake: 'make' command not found or build fails">
+Check if the build tools like `make`, `ninja`, or Visual Studio are installed and accessible from your terminal.
+
+- On Linux/macOS, install `make` via your package manager.
+- On Windows, ensure you have Visual Studio with C++ tools or a compatible builder.
+
+Run `cmake --help` to check the available generators.
+</Accordion>
+<Accordion title="Linker errors related to pthreads">
+Ensure that when pthreads are used, they are linked properly.
+
+- Use the CMake build scripts as they automatically include pthreads where necessary.
+- If manually linking, add `-pthread` to compiler and linker flags.
+</Accordion>
+<Accordion title="Visual Studio runtime mismatch errors">
+If you see runtime library mismatch errors (e.g., static vs dynamic CRT):
+
+- Use the CMake flag `-Dgtest_force_shared_crt=ON` to align runtimes.
+- Make sure your entire project and GoogleTest use consistent runtime settings.
+</Accordion>
+<Accordion title="Pkg-config cannot find GoogleTest after manual install">
+Set the environment variable to point to the `.pc` file directory:
+
+```bash
+export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig
+```
+
+- Adjust the path to where GoogleTest was installed.
+- For cross-compilation, see `docs/pkgconfig.md` for detailed instructions.
+</Accordion>
+</AccordionGroup>
+
+<Note>
+If you encounter issues not covered here, consult the [Troubleshooting Common Setup Issues](https://github.com/google/googletest/blob/main/docs/troubleshooting-setup.md) page.
+</Note>
+
+---
+
+## 6. Next Steps & Additional Resources
+
+- After successful installation, proceed to [Writing and Building Your First Test](https://github.com/google/googletest/blob/main/docs/writing-first-test.md) to start creating meaningful tests.
+- Review the [GoogleTest Primer](https://github.com/google/googletest/blob/main/docs/primer.md) for comprehensive test writing guidelines.
+- Explore [Integration and Ecosystem](https://github.com/google/googletest/blob/main/docs/integration-and-ecosystem.md) for advanced build system and CI pipeline setup.
+
+---
+
+## References
+
+- [Official GoogleTest GitHub Repository](https://github.com/google/googletest)
+- [Quickstart with CMake](https://github.com/google/googletest/blob/main/docs/quickstart-cmake.md)
+- [Quickstart with Bazel](https://github.com/google/googletest/blob/main/docs/quickstart-bazel.md)
+- [Supported Platforms](https://github.com/google/googletest/blob/main/docs/platforms.md)
+- [Pkg-config Integration Guide](https://github.com/google/googletest/blob/main/docs/pkgconfig.md)
+
+---

@@ -1,0 +1,157 @@
+---
+title: "Platform and Compatibility Updates"
+description: "Reports on expanded or adjusted platform, compiler, and integration support. Tracks evolving compatibility, helps users plan for updates, and allows teams to verify support before adoption or upgrades."
+---
+
+# Platform and Compatibility Updates
+
+This documentation page provides a clear, user-focused overview of the latest expansions and adjustments in platform, compiler, and integration support for GoogleTest. It aims to help developers understand current compatibility, plan upgrades wisely, and verify environment support ahead of adoption.
+
+---
+
+## 1. Supported Platforms and Compilers
+
+GoogleTest strictly adheres to Google's [Foundational C++ Support Policy](https://opensource.google/documentation/policies/cplusplus-support), ensuring compatibility with a broad set of platforms. Recent updates continue to expand and clarify this scope:
+
+- **Operating Systems:**
+  - Full support for major desktop platforms: Linux (including Android variants), Windows (Desktop and MinGW), macOS, FreeBSD, OpenBSD, NetBSD, and others.
+  - Extended support for less common and embedded OSes like Fuchsia, QNX, Haiku, and Solaris, with practical notes on partial or evolving support.
+  - Explicit acknowledgment of unsupported or limited platforms such as Windows Mobile, Windows Phone, ESP8266/ESP32, Xtensa, and QURT, especially where OS or runtime limitations exist.
+
+- **C++ Standard:**
+  - Requires **minimum C++17 support** across all compilers and build environments to ensure modern features and consistent behavior.
+
+- **Compilers:**
+  - Verified compatibility with GCC (7+), Clang (3.4+), MSVC (2017 Update 3 or higher), Intel and other vendor compilers where they meet C++17 capabilities.
+  - Adjustments for platform-specific compiler behaviors, such as MSVC dynamic runtime mismatches and strict warning policies.
+
+- **Build Systems:**
+  - Seamless integration with CMake (minimum 3.14 for some advanced features like FetchContent) and Bazel.
+  - Flexible build options supporting standalone, embedded, static, and shared library builds.
+
+<Info>
+For the latest exact platform and compiler versions supported, refer to the official [supported platforms matrix](https://github.com/google/oss-policies-info/blob/main/foundational-cxx-support-matrix.md).
+</Info>
+
+## 2. Thread Safety and Concurrency
+
+GoogleTest continues to improve its thread-safety guarantees:
+
+- Thread-safe operation is enabled on platforms with pthread support, including Linux, macOS, FreeBSD, and compatible systems.
+- Windows support leverages native synchronization primitives, with ongoing validation to minimize race conditions.
+- Users on platforms without threading support (e.g., some embedded systems) should expect single-thread usage and limited concurrent test execution.
+
+<Tip>
+Use the `GTEST_IS_THREADSAFE` macro to check at compile time whether GoogleTest supports your platform’s threading model.
+</Tip>
+
+## 3. Stream and Output Capturing
+
+Support for standard output and error capturing has been refined:
+
+- Platforms with file system access and stream redirection support `CaptureStdout()`, `CaptureStderr()` APIs.
+- Stream redirection is disabled automatically on embedded or mobile platforms that lack these capabilities.
+- Death tests, which require output interception and process control, are available on supported desktop platforms and disabled where necessary.
+
+<Warning>
+Attempting to use death tests or stream capturing on unsupported platforms will fail or be disabled automatically.
+</Warning>
+
+## 4. Shared Libraries and Runtime Linking
+
+Significant improvements and clarifications include:
+
+- Building GoogleTest as a shared library (DLL on Windows) is now straightforward using the `GTEST_CREATE_SHARED_LIBRARY` compile flag.
+- Companion compile flag `GTEST_LINKED_AS_SHARED_LIBRARY` must be set when linking test binaries against shared GoogleTest libraries to maintain binary compatibility.
+- On Windows, care has been taken to align dynamically linked runtimes between GoogleTest and user projects, avoiding common linker errors related to runtime library mismatches.
+
+<Check>
+When using Visual Studio, enable the `gtest_force_shared_crt` CMake option to ensure dynamic CRT linkage compatibility.
+</Check>
+
+## 5. Key Portability Macros and Feature Detection
+
+Porting and advanced configuration layers have been refined to detect and expose environment capabilities clearly, helping users adjust their usage accordingly:
+
+- Macros such as `GTEST_HAS_PTHREAD`, `GTEST_HAS_EXCEPTIONS`, `GTEST_HAS_RTTI`, and `GTEST_HAS_POSIX_RE` are correctly resolved at compile time for the target platform.
+- Platform detection macros like `GTEST_OS_LINUX`, `GTEST_OS_WINDOWS_DESKTOP`, `GTEST_OS_MAC`, etc., ensure environment-specific code paths are enabled.
+- Regular expression engine selection (`RE2`, POSIX, or simple regex fallback) is determined automatically based on platform and dependencies.
+
+<Note>
+Advanced users can override these macros via build configurations to customize behavior or work around platform quirks.
+</Note>
+
+## 6. Build and Integration Best Practices
+
+Guidance has been enhanced to keep builds reliable and consistent:
+
+- Prefer building GoogleTest as part of your main project’s CMake build using `add_subdirectory()` to ensure uniform compiler/linker options.
+- Use FetchContent support (CMake 3.14+) for automated downloading and building of GoogleTest dependencies.
+- When using pkg-config or external install, properly configure include and library paths.
+- Monitor and align runtime linking flags especially on Windows to prevent CRT mismatches.
+
+## 7. Summary
+
+The Platform and Compatibility Updates document is your essential reference for verifying whether GoogleTest fits your development environment and how to configure it optimally. It bridges compatibility across operating systems, compilers, and build tools while providing clear instructions for threading, output capturing, and library linkage.
+
+---
+
+### References and Related Documentation
+
+- [Supported Platforms & Requirements](../overview/getting-started-integration/supported-platforms.md) — detailed platform and compiler support overview
+- [Basic Configuration & Integration](../getting-started/setup-basics/basic-configuration.md) — how to build and integrate GoogleTest with CMake and other systems
+- [Portability & Configuration Flags](../api-reference/advanced-utilities-internals/portability-and-configuration.md) — internal macros and feature toggles
+- [Troubleshooting Common Setup Issues](../getting-started/first-run-validation/troubleshooting-setup.md) — for setup problems related to platform or compiler incompatibilities
+
+> For upgrade planning, consult [Breaking Changes and Migration Notes](../changelog/breaking-changes-upgrades/breaking-changes.md) and [Upgrade Guides](../changelog/breaking-changes-upgrades/upgrade-guides.md).
+
+---
+
+### Practical Tips
+
+- Always verify your compiler supports **C++17** or higher before building GoogleTest.
+- Use `GTEST_IS_THREADSAFE` to check thread support; avoid multithreaded tests if unsupported.
+- On Windows, enable `gtest_force_shared_crt` in CMake for runtime linkage harmony.
+- On embedded or mobile platforms, expect some feature limitations related to file systems, threading, and death tests.
+- Follow official build practices using CMake's `FetchContent` for the smoothest integration and updates.
+
+---
+
+### Troubleshooting Common Issues
+
+<AccordionGroup title="Troubleshooting Platform and Compatibility Problems">
+<Accordion title="Build Fails Due to Compiler Version">
+Ensure your compiler supports at least C++17. Upgrade your compiler or adjust project settings to set `CMAKE_CXX_STANDARD` to 17 or higher.
+</Accordion>
+<Accordion title="Link Errors on Windows Related to Runtime Matching">
+Activate the CMake option `gtest_force_shared_crt` to ensure GoogleTest and your project use the same dynamic runtime library.
+</Accordion>
+<Accordion title="Death Tests Fail or Are Disabled">
+Check if your platform supports process control and stream redirection features required by death tests. Such tests are automatically disabled on unsupported platforms.
+</Accordion>
+<Accordion title="Tests Run in Single Thread Even When Requested Otherwise">
+Verify `GTEST_IS_THREADSAFE` is set to 1. If zero, GoogleTest disables thread safety due to platform restrictions.
+</Accordion>
+</AccordionGroup>
+
+---
+
+### Example CMake Integration Snippet
+
+```cmake
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/refs/tags/v1.17.0.zip
+)
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
+add_executable(my_tests test_main.cpp)
+target_link_libraries(my_tests gtest_main)
+add_test(NAME my_tests COMMAND my_tests)
+```
+
+---
+
+This documentation empowers developers to confidently verify GoogleTest’s compatibility with their environment, streamline integration workflows, and anticipate platform-specific capabilities or constraints.

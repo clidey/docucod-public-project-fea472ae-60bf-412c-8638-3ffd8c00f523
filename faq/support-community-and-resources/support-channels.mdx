@@ -1,0 +1,168 @@
+---
+title: "Getting Help & Support"
+description: "Directs users to official support channels, issue trackers, and best practices for reporting bugs or obtaining troubleshooting assistance from the maintainers or wider community."
+---
+
+# Getting Help & Support
+
+This page guides you to the official GoogleTest support channels, issue trackers, and provides best practices for reporting bugs or obtaining troubleshooting assistance from the maintainers or community. Whether you are facing setup problems, unexpected test failures, or want to contribute, this documentation directs you efficiently to the right resources and workflows.
+
+---
+
+## Frequently Asked Questions
+
+### How do I get official support for GoogleTest and GoogleMock?
+
+GoogleTest is an open-source project supported primarily through community channels and issue trackers. For official help:
+
+- Use the [GitHub Issue Tracker](https://github.com/google/googletest/issues) to report bugs or request features.
+- Review existing issues to see if your problem has already been addressed.
+- Engage with the community on mailing lists or discussion forums (links located through the GitHub repository README).
+
+### Where can I report bugs or unexpected behaviors?
+
+Bugs and unexpected behaviors should be reported via the **GitHub Issues page** of the GoogleTest repository:
+
+- Provide a clear description of the problem.
+- Include steps to reproduce the issue, preferably with minimal code examples.
+- Specify your environment, including platform, compiler version, and GoogleTest version.
+
+This aids maintainers and contributors in diagnosing and resolving issues rapidly.
+
+### How should I file an effective bug report?
+
+To make your bug report actionable and effective:
+
+1. **Describe the problem clearly and concisely.** What did you expect, and what happened?
+2. **Provide minimal reproducible code.** A small test case that fails consistently is invaluable.
+3. **Include environment details.** Platforms (e.g., Linux, Windows, macOS), compilers (e.g., GCC 10.2, MSVC 2019), and the GoogleTest version (commit SHA or release number).
+4. **Show test invocation commands and relevant output.** This could include compiler commands, test runner flags, and failure logs.
+5. **Avoid including irrelevant details or large code dumps.** Keep it focused on the problem.
+
+### What are the recommended ways to get help for troubleshooting?
+
+- **Documentation:** Many common problems and their solutions are covered in other FAQ and Troubleshooting pages, such as "Troubleshooting Common Setup Issues" and "Diagnosing Test Failures".
+- **Existing Issues:** Search the GitHub issues; often, other users have encountered similar problems.
+- **Community Discussions:** Engage with the GoogleTest user community via mailing lists or forums for peer assistance.
+
+### How can I contribute or get involved with the GoogleTest project?
+
+You can contribute by:
+
+- Reporting bugs politely and constructively.
+- Submitting pull requests with fixes or enhancements.
+- Improving documentation or tests.
+
+Please review the contribution guidelines provided in the repository README.
+
+### What is the best way to escalate issues if I don’t get a timely response?
+
+Given that GoogleTest is community-driven, escalation paths are limited. If your issue is urgent and unaddressed:
+
+- Comment politely on your existing issue to request attention.
+- Engage with the community and tag specific maintainers if appropriate.
+- Consider seeking help from developer communities outside the project, like Stack Overflow.
+
+---
+
+## Common Help & Support Channels
+
+| Type                | Channel                                                                              | Purpose                                 |
+|---------------------|--------------------------------------------------------------------------------------|-----------------------------------------|
+| Issue Tracker       | [GitHub Issues](https://github.com/google/googletest/issues)                         | Reporting bugs, feature requests        |
+| Community Forums    | Links available via [GitHub repository](https://github.com/google/googletest)        | Discussing problems, usage tips          |
+| Mailing Lists       | (If applicable, linked on GitHub or official site)                                 | Announcements, collaboration             |
+| Documentation Site  | The [GoogleTest Documentation](https://google.github.io/googletest/)                 | Reference, tutorials, FAQ                 |
+
+---
+
+## Best Practices for Support Requests
+
+- **Search before posting:** Help maintainers by checking whether your question or issue is already covered.
+- **Provide reproducible examples:** Code snippets or test cases that can be run help others help you.
+- **Use clear, descriptive titles and content:** This enables easier searches and draws attention.
+- **Be patient and polite:** Maintainers and community volunteers often work in their free time.
+
+---
+
+## Troubleshooting Assistance
+
+For common GoogleTest usage issues, refer to these specific resources within the documentation:
+
+- [Troubleshooting Common Setup Issues](/getting-started/first-run-validation/troubleshooting-setup): For build and installation problems.
+- [Diagnosing Common Test Failures](/faq/basics-and-troubleshooting/common-test-failures): For runtime failures and test logic issues.
+- [Mocking Edge Cases FAQ](/faq/advanced-usage-and-optimization/mocking-edge-cases): For advanced mock-related problems.
+
+Make sure you've also reviewed the [Supported Platforms & Requirements](/overview/getting-started-integration/supported-platforms) and [Installation Guide](/getting-started/setup-basics/installation-guide) to verify system compatibility.
+
+---
+
+## Example: Reporting a Bug Effectively
+
+```
+Title: GoogleMock fails to match overload when using MOCK_METHOD
+
+Description:
+When mocking overloaded methods using MOCK_METHOD, I experience
+unexpected match failures.
+
+Steps to Reproduce:
+1. Define a class with overloaded virtual methods.
+2. Define a mock class using MOCK_METHOD for each overload.
+3. Set EXPECT_CALL on one overload.
+4. Call the method in test and observe failure.
+
+Environment:
+- OS: Ubuntu 22.04
+- Compiler: GCC 11.2
+- GoogleTest version: main branch @ 9f8a7c
+
+Test Command:
+$ bazel test //my_test:mock_test
+
+Expected:
+Test passes, mock methods matched correctly.
+
+Actual:
+Match failure reported.
+
+```
+
+This level of detail allows maintainers to quickly understand and address issues.
+
+---
+
+## How to Seek Help on Community Forums
+
+While not official support, community forums can be a valuable resource:
+
+- Provide context and details about your setup and problem.
+- Share code snippets or error messages.
+- Confirm you have searched existing threads.
+
+Remember, formatting your posts clearly and expressing what you have tried helps get quicker, higher-quality answers.
+
+---
+
+## Summary
+This page equips you with pathways to get help when using GoogleTest and GoogleMock. Use official GitHub issues to report bugs; leverage community resources for troubleshooting and questions. Provide detailed, clear information when requesting support to accelerate resolution. Review other targeted FAQ pages for common problems before reaching out.
+
+---
+
+## See Also
+- [Troubleshooting Common Setup Issues](/getting-started/first-run-validation/troubleshooting-setup)
+- [Diagnosing Common Test Failures](/faq/basics-and-troubleshooting/common-test-failures)
+- [Mocking Edge Cases FAQ](/faq/advanced-usage-and-optimization/mocking-edge-cases)
+- [Supported Platforms & Requirements](/overview/getting-started-integration/supported-platforms)
+- [Installation Guide](/getting-started/setup-basics/installation-guide)
+- [GoogleTest GitHub Repository](https://github.com/google/googletest)
+
+---
+
+<Tip>
+Always include clear reproduction steps and your environment details when reporting bugs to facilitate efficient help.
+</Tip>
+
+<Note>
+For non-critical issues, consider searching or asking in community forums before filing GitHub issues.
+</Note>
