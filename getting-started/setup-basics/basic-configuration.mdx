@@ -1,0 +1,255 @@
+---
+title: "Basic Configuration & Integration"
+description: "Guides users through adding GoogleTest/GoogleMock to their own project's build system, whether using CMake, Bazel, or pkg-config. Covers configuring include paths and linking against the correct libraries/components."
+---
+
+# Basic Configuration & Integration
+
+This guide helps you seamlessly add GoogleTest and GoogleMock to your project's build system. Whether your project uses CMake, Bazel, or pkg-config, you will learn how to configure include paths correctly, link against the right libraries, and ensure your tests build and link properly.
+
+---
+
+## 1. Overview
+
+GoogleTest and GoogleMock provide powerful C++ testing frameworks designed to integrate smoothly into diverse build setups. This page focuses specifically on the **integration and basic configuration** aspect—guiding you through adding the libraries to your build system, setting up necessary include directories, compiler flags, and linker settings.
+
+If you are new to GoogleTest, consult our [GoogleTest Primer](https://github.com/google/googletest/blob/main/docs/primer.md) to get familiar with foundational concepts before configuring your build.
+
+---
+
+## 2. Prerequisites & Preparation
+
+Before configuring your build:
+
+- **Ensure you have GoogleTest/GoogleMock source or installed libraries** available locally or via fetch mechanisms.
+- Confirm your compiler supports C++17 or newer, as required by GoogleTest.
+- Verify that your build environment aligns with supported platforms ([see Supported Platforms](overview/getting-started-integration/supported-platforms)).
+
+
+---
+
+## 3. Integration with CMake
+
+GoogleTest ships with native CMake support. You can either build it as a standalone project or incorporate it directly into your project.
+
+### 3.1 Standalone Build
+
+1. Clone GoogleTest repository:
+
+```bash
+ git clone https://github.com/google/googletest.git -b v1.17.0
+ cd googletest
+ mkdir build
+ cd build
+```
+
+2. Generate platform-native build scripts:
+
+```bash
+ cmake ..
+```
+
+To build with GoogleMock included (default), or exclude GoogleMock by setting `-DBUILD_GMOCK=OFF`:
+
+```bash
+ cmake .. -DBUILD_GMOCK=OFF
+```
+
+3. Build and install:
+
+- On Linux/macOS:
+
+```bash
+ make
+ sudo make install
+```
+
+- On Windows: Open generated `.sln` file in Visual Studio and build.
+
+
+### 3.2 Adding GoogleTest to Your Existing CMake Project
+
+You can either:
+
+- Install GoogleTest system-wide and use `find_package(GTest CONFIG REQUIRED)` to locate it, then link to `GTest::gtest`, `GTest::gmock` etc.
+
+- Or add GoogleTest as a subdirectory in your project to build it alongside your code.
+
+Example for subdirectory approach in your `CMakeLists.txt`:
+
+```cmake
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/5376968f6948923e2411081fd9372e71a59d8e77.zip
+)
+# Forces shared CRT for Visual Studio to avoid runtime conflicts
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
+add_executable(example example.cpp)
+target_link_libraries(example gtest_main)
+add_test(NAME example_test COMMAND example)
+```
+
+> **Tip:** Setting `gtest_force_shared_crt` ON is important on Windows to prevent conflicts between static and dynamic CRT linkage.
+
+### 3.3 Include and Link Configuration
+
+After integration, make sure your test targets include GoogleTest/GoogleMock headers and link properly:
+
+```cmake
+target_include_directories(your_test_target PRIVATE ${gtest_SOURCE_DIR}/include)
+target_link_libraries(your_test_target PRIVATE gtest gmock)
+```
+
+> Modern CMake usage recommends using `target_link_libraries()` and `target_include_directories()` on targets for clean dependency management.
+
+
+---
+
+## 4. Integration with Bazel
+
+GoogleTest and GoogleMock support Bazel builds via provided `BUILD` files:
+
+- Add `@com_google_googletest` repository.
+- Declare dependencies on `@com_google_googletest//:gtest` and `@com_google_googletest//:gmock` in your `BUILD` files.
+
+For more details, refer to the Bazel integration docs in the repository or examples.
+
+---
+
+## 5. Using pkg-config for Build Configuration
+
+GoogleTest installs pkg-config `.pc` files (`gtest.pc`, `gmock.pc`) that contain all flags required to compile and link your tests.
+
+### 5.1 Using pkg-config in CMake
+
+Here's an example CMake snippet using pkg-config to integrate GoogleTest:
+
+```cmake
+find_package(PkgConfig REQUIRED)
+pkg_search_module(GTEST REQUIRED gtest_main)
+
+add_executable(testapp samples/sample3_unittest.cc)
+target_link_libraries(testapp PRIVATE ${GTEST_LDFLAGS})
+target_compile_options(testapp PRIVATE ${GTEST_CFLAGS})
+
+enable_testing()
+add_test(NAME first_and_only_test COMMAND testapp)
+```
+
+This approach automatically pulls in include directories, compiler definitions (like `-DGTEST_HAS_PTHREAD=1`), threading flags (`-pthread`), and linking flags.
+
+### 5.2 Troubleshooting pkg-config
+
+If `pkg-config` cannot find GoogleTest:
+
+- Ensure the `PKG_CONFIG_PATH` environment variable includes the directory containing `gtest.pc` and `gmock.pc` files.
+
+Example:
+
+```bash
+export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig
+```
+
+- For cross-compilation, configure `PKG_CONFIG_SYSROOT_DIR` and `PKG_CONFIG_LIBDIR` accordingly to point inside your sysroot.
+
+---
+
+## 6. Configuring Include Paths and Linking Libraries
+
+Regardless of build system, the core integration steps involve:
+
+1. Pointing the compiler to GoogleTest/GoogleMock's include directories.
+
+2. Linking your test binaries against the appropriate GoogleTest or GoogleMock libraries.
+
+Common library targets:
+
+- `gtest`: Core GoogleTest library (without a `main` function).
+- `gtest_main`: GoogleTest core plus a default `main()` implementation.
+- `gmock`: Core GoogleMock library.
+- `gmock_main`: GoogleMock library including default `main()`.
+
+
+---
+
+## 7. Best Practices
+
+- Prefer linking with `gtest_main` or `gmock_main` if you don't need a custom `main()`; this simplifies your test executable.
+- Use the same compiler and build flags for your tests and for GoogleTest/GoogleMock to avoid ABI or runtime conflicts.
+- If your project requires shared libraries, build GoogleTest with `-DGTEST_CREATE_SHARED_LIBRARY=1` and link tests with `-DGTEST_LINKED_AS_SHARED_LIBRARY=1`.
+- On Windows, explicitly set Visual Studio runtime linkage with `gtest_force_shared_crt` to avoid linker errors.
+- Use `target_compile_options` and `target_compile_definitions` for cleaner build configurations instead of manual include or define hacks.
+
+---
+
+## 8. Troubleshooting Common Integration Issues
+
+### 8.1 Linker Errors for Missing Symbols
+
+- Confirm that you are linking against the correct GoogleTest or GoogleMock libraries.
+- If using a custom `main()`, link only with `gtest`, not `gtest_main`.
+- Also ensure all runtime libraries match (static vs dynamic CRT).
+
+### 8.2 Header Not Found Errors
+
+- Verify correct `include` directories are set.
+- If using pkg-config, double-check `GTEST_CFLAGS` include `-I` paths correctly.
+
+### 8.3 Threading Issues
+
+- If your platform lacks pthread, or if you get errors related to pthread, define `-DGTEST_HAS_PTHREAD=0` or `1` explicitly in your build flags.
+
+
+---
+
+## 9. Additional Resources
+
+- [GoogleTest Primer](docs/primer.md) – Understand test writing basics.
+- [Supported Platforms](overview/getting-started-integration/supported-platforms) – Confirm your environment compatibility.
+- [Integration and Ecosystem](overview/getting-started-integration/integration-and-ecosystem) – Learn about broader toolchain integration.
+- [pkg-config Integration Guide](docs/pkgconfig.md) – Details on using pkg-config with your build system.
+- [GoogleMock CMake Build](googlemock/CMakeLists.txt) – Reference for GoogleMock build and linkage.
+
+---
+
+By following the above instructions tailored to your build system, you will have GoogleTest and GoogleMock correctly configured to write and run tests in your C++ project quickly and reliably.
+
+
+---
+
+## Appendix: Minimal CMake Example
+
+A simple CMake snippet to add GoogleTest using `FetchContent` and build a test executable:
+
+```cmake
+cmake_minimum_required(VERSION 3.14)
+project(MyTests CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/refs/tags/v1.17.0.zip
+)
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
+add_executable(my_test test.cpp)
+target_link_libraries(my_test PRIVATE gtest_main gmock_main)
+
+include(CTest)
+enable_testing()
+add_test(NAME my_test COMMAND my_test)
+```
+
+Replace `test.cpp` with your test source files. This example downloads GoogleTest automatically and links your tests properly.
+
+
+---
+
+# End of Basic Configuration & Integration Guide
