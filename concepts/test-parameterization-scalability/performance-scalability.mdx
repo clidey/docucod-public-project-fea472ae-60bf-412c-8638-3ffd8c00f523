@@ -1,0 +1,137 @@
+---
+title: "Performance and Scalability Considerations"
+description: "Review how GoogleTest supports large test suites and varied test strategies, including test discovery, selective execution, and parallelization. Learn recommended approaches for scaling up test infrastructure and mitigating performance bottlenecks."
+---
+
+# Performance and Scalability Considerations
+
+GoogleTest is designed to support a wide range of testing needs — from small unit tests to large, complex test suites. This page explains how GoogleTest handles test discovery, selective execution, and concurrency to help you scale your test infrastructure efficiently. We also cover recommended practices to maximize performance and avoid common bottlenecks.
+
+---
+
+## Efficient Test Discovery and Execution
+
+GoogleTest automatically discovers all registered tests, categorized into test suites and individual tests. This approach means you don't have to manually list your tests — just define them with macros like `TEST()`, `TEST_F()`, or `TEST_P()`.
+
+To manage large test suites without sacrificing speed, GoogleTest allows users to run only a subset of tests using filters:
+
+- **Test Filtering:** Use the `--gtest_filter` flag to specify wildcard patterns selecting tests to run. This supports positive and negative patterns to include or exclude specific tests.
+- **Sharding (Test Distribution):** When running tests on multiple machines or processes, set `GTEST_TOTAL_SHARDS` and `GTEST_SHARD_INDEX` environment variables. GoogleTest will partition tests across shards so that each test runs exactly once across the shards, enabling distributed parallel testing.
+
+By leveraging filtering and sharding, you can focus test runs on areas of interest or execute subsets in parallel to reduce overall build pipeline time.
+
+---
+
+## Parallelization and Thread Safety
+
+To optimize performance on modern multi-core systems, GoogleTest supports concurrent test execution with thread safety mechanisms:
+
+- **Thread-Safe Test Execution:** On platforms where `GTEST_IS_THREADSAFE` is enabled (such as Linux, macOS, and Windows), GoogleTest maintains proper synchronization to safely execute tests and mock operations in parallel threads.
+- **Concurrent Assertions and Traces:** GoogleTest’s internal constructs like `SCOPED_TRACE` and assertions work correctly in multi-threaded contexts, ensuring that logs and failures remain consistent and meaningful.
+
+The included stress tests (for example, `gtest_stress_test.cc` and `gmock_stress_test.cc`) demonstrate GoogleTest and GoogleMock’s capacity to handle hundreds of concurrent assertions and mock interactions across dozens of threads reliably.
+
+### Tips for Effective Parallel Testing
+
+- Make sure your tests and mocks do not depend on shared mutable global state or protect shared resources with appropriate synchronization.
+- Use sharding or external test runners (e.g., [`gtest-parallel`](https://github.com/google/gtest-parallel)) for coarse-grained parallel test distribution.
+- Use GoogleMock’s strictness wrappers like `StrictMock<T>` to enforce tighter expectations, which can help catch concurrency-related failures.
+
+---
+
+## Runtime Configuration for Performance
+
+GoogleTest exposes several flags that give you control over runtime behavior to optimize speed:
+
+- `--gtest_repeat=N`: Run all selected tests N times to catch flaky tests; useful when combined with parallel runs.
+- `--gtest_shuffle`: Randomize test order on each run to expose hidden dependencies.
+- `--gtest_fail_fast`: Stop test execution on the first failure to reduce wasted time when debugging.
+- `--gtest_break_on_failure`: Useful under debuggers to halt on failure exactly where it occurs.
+
+These options enable sophisticated workflows for continuous integration pipelines where test time and reliability are critical.
+
+---
+
+## Test Suite and Fixture Resource Management
+
+GoogleTest creates a fresh fixture object for each test by default, ensuring test independence but potentially increasing setup cost. To mitigate this:
+
+- Use `SetUpTestSuite()` and `TearDownTestSuite()` static methods in your fixture classes to share expensive resources (e.g., database connections, large data buffers) across all tests in a suite.
+- Be mindful that tests should not depend on execution order; fixtures must still be stateless or properly isolated.
+
+This balance provides both isolation and efficiency as your test suites grow.
+
+---
+
+## Test Result Reporting and Logging
+
+Performance considerations extend to capturing diagnostic data:
+
+- Use `RecordProperty()` to attach key/value metadata to tests. This metadata can be used to track test coverage, performance metrics, or custom tags without burdening test execution speed.
+- Generate XML or JSON reports with the `--gtest_output` flag to integrate with CI systems; these report formats are efficient and structured for automated analysis.
+
+---
+
+## Common Pitfalls to Avoid
+
+- **Running Non-Threadsafe Tests Concurrently:** Not all platforms or older versions may fully support thread safety. Attempting to run tests in parallel on unsupported platforms can cause flaky or corrupted test results.
+- **Shared Mutable State:** Tests that share global mutable state without synchronization can lead to subtle failures when run concurrently.
+- **Unintended Side-Effects in Fixtures:** Heavy-use of shared resources without proper setup/teardown can degrade performance or cause cross-test interference.
+
+---
+
+## Summary
+
+GoogleTest’s design supports large-scale test suites with:
+
+- Automatic discovery and filtering of tests.
+- Support for sharding and distributed test execution.
+- Thread-safe support for concurrent testing.
+- Flexible runtime flags for performance tuning.
+- Shared test suite resource management for expensive setups.
+
+By following the recommended approaches here, users can build highly scalable and maintainable test infrastructures that maximize productivity and test execution speed.
+
+---
+
+## Example: Using Test Sharding with Test Filtering
+
+Imagine you have a suite with thousands of tests. You want to split these across 4 machines to run faster, but only for tests matching `MyFeature*`:
+
+```bash
+# On machine 1
+export GTEST_TOTAL_SHARDS=4
+export GTEST_SHARD_INDEX=0
+./my_tests --gtest_filter=MyFeature*
+
+# On machines 2,3,4
+export GTEST_TOTAL_SHARDS=4
+export GTEST_SHARD_INDEX=1 (2,3 respectively)
+./my_tests --gtest_filter=MyFeature*
+```
+
+Each machine runs only a distinct subset, and together they cover all matching tests across shards.
+
+---
+
+## Additional Resources
+
+- [Running and Configuring Tests Guide](/guides/core-workflows/running-and-configuring-tests)
+- [Sharding and Test Distribution Flags](docs/primer.md#running-tests)
+- [GoogleTest Primer](docs/primer.md) for basic concepts
+- [Stress Tests Examples](https://github.com/google/googletest/tree/main/googletest/test) like `gtest_stress_test.cc` and `gmock_stress_test.cc`
+- [GoogleMock Mock Strictness Helpers](api-reference/googlemock-mocking-apis/mock-strictness-helpers.mdx)
+
+---
+
+## Troubleshooting Performance Issues
+
+If you encounter slow test runs or flaky parallel tests:
+
+- Confirm thread safety for your platform via `GTEST_IS_THREADSAFE` (visible when building).
+- Use filters to isolate tests that slow down or cause conflicts.
+- Review shared resource usage in fixtures.
+- Leverage `--gtest_shuffle` to uncover order dependencies.
+- Use CI tools like `gtest-parallel` for managing concurrency.
+
+---
