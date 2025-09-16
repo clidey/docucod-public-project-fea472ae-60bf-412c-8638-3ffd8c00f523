@@ -1,0 +1,314 @@
+---
+title: "Value- and Type-Parameterized Testing"
+description: "Discover how parameterized tests allow you to run the same logic over multiple data sets or types, minimizing duplication and increasing coverage. Learn about the underlying mechanisms and real-world benefits."
+---
+
+# Value- and Type-Parameterized Testing
+
+Value- and type-parameterized tests empower you to write flexible, comprehensive test suites by running the same logic over multiple input values or types. This approach reduces code duplication while increasing test coverage and maintainability in GoogleTest.
+
+---
+
+## Introduction to Parameterized Testing
+
+Imagine you’re verifying a function’s behavior over a range of inputs or multiple data types. Writing a separate test for each can be tedious and error-prone. Parameterized tests let you abstract the test logic and run it repeatedly with different parameters or types, ensuring consistency and completeness.
+
+Value-parameterized tests focus on running the same test with different values, while typed and type-parameterized tests focus on running the same test for multiple types.
+
+This document explains how to write and use these tests effectively.
+
+---
+
+## Value-Parameterized Tests
+
+Value-parameterized tests run a test multiple times with different input *values*. They are your go-to tool when wanting to validate functionality over varied data without copying test code.
+
+### How It Works
+
+1. **Define a Test Fixture:** Your fixture must inherit from `testing::Test` and `testing::WithParamInterface<T>`, or more simply, from `testing::TestWithParam<T>`, where `T` is the parameter type.
+
+```cpp
+class MyValueTest : public ::testing::TestWithParam<int> {
+  // ... fixture code ...
+};
+```
+
+2. **Write Parameterized Tests:** Use `TEST_P` to define one or more tests based on this fixture.
+
+```cpp
+TEST_P(MyValueTest, IsEven) {
+  int value = GetParam();
+  EXPECT_EQ(value % 2, 0);
+}
+```
+
+3. **Instantiate the Tests:** Use `INSTANTIATE_TEST_SUITE_P` to provide sets of parameters from which tests will be instantiated.
+
+```cpp
+INSTANTIATE_TEST_SUITE_P(EvenNumbers, MyValueTest,
+                         ::testing::Values(2, 4, 6, 8));
+```
+
+Each parameter instantiates a test, e.g., `EvenNumbers/MyValueTest.IsEven/0` runs with `2`, `/1` with `4`, etc.
+
+### Parameter Generators
+
+GoogleTest provides flexible generators to supply parameters:
+
+- `Values(...)`: Explicit list of parameter values.
+- `ValuesIn(container)`: Parameters from STL containers or arrays.
+- `Range(start, end[, step])`: Yields values from start to end (exclusive).
+- `Bool()`: Generates `false` and `true`.
+- `Combine(...)`: Cartesian product of multiple generators for multidimensional tests.
+
+#### Example with Combine
+
+```cpp
+using ::testing::Combine;
+using ::testing::Values;
+using ::testing::Bool;
+
+class MyCombinedTest : public ::testing::TestWithParam<std::tuple<int, bool>> {};
+
+TEST_P(MyCombinedTest, TestLogic) {
+  int number = std::get<0>(GetParam());
+  bool flag = std::get<1>(GetParam());
+  // Test something with number and flag
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Combinations, MyCombinedTest,
+    Combine(Values(1, 2, 3), Bool()));
+```
+
+This produces 6 tests for all combinations of numbers and flags.
+
+### Custom Test Names
+
+You can generate descriptive test names by providing a name generator function or functor as the optional fourth argument to `INSTANTIATE_TEST_SUITE_P`. The function takes a `TestParamInfo<ParamType>` and returns a string.
+
+```cpp
+INSTANTIATE_TEST_SUITE_P(
+    NamedTests, MyValueTest, Values(2, 4, 6),
+    [](const testing::TestParamInfo<int>& info) {
+      return "Value" + std::to_string(info.param);
+    });
+```
+
+This way, your test names become more readable.
+
+### Special Notes
+
+- `SetUpTestSuite()` and `TearDownTestSuite()` if used in parameterized fixtures must be `public`.
+- Tests without an instantiation cause a failing test suite `GoogleTestVerification`. To suppress, use `GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST`.
+
+---
+
+## Typed Tests
+
+Typed tests run the *same test logic repeatedly for a fixed list of types*. This is helpful to verify implementations over various data types.
+
+### How To Write Typed Tests
+
+1. **Define a Fixture Template:** Template your fixture class on a type parameter and derive from `testing::Test`.
+
+```cpp
+template <typename T>
+class MyTypedTest : public testing::Test {
+ public:
+  T value_;
+};
+```
+
+2. **Declare Types to Test:** Use `testing::Types` to list types.
+
+```cpp
+using MyTypes = testing::Types<int, double, char>;
+```
+
+3. **Associate Types with Fixture:** Use `TYPED_TEST_SUITE` to bind the type list to your fixture.
+
+```cpp
+TYPED_TEST_SUITE(MyTypedTest, MyTypes);
+```
+
+4. **Write the Tests:** Use `TYPED_TEST(FixtureName, TestName)` macro. Use `TypeParam` inside the test to refer to the current type.
+
+```cpp
+TYPED_TEST(MyTypedTest, IsDefaultConstructible) {
+  TypeParam val{};  // Works for int, double, char
+  EXPECT_TRUE(true);  // Dummy check
+}
+```
+
+---
+
+## Type-Parameterized Tests
+
+Type-parameterized tests are similar to typed tests but allow you to **define the test patterns first, and associate types later.** This flexibility lets your tests be defined once and instantiated as needed.
+
+### How to Write Type-Parameterized Tests
+
+1. **Define a Fixture Template:**
+
+```cpp
+template <typename T>
+class MyTypeParamTest : public testing::Test {
+  // ... fixture code ...
+};
+```
+
+2. **Declare the Test Suite:** Use `TYPED_TEST_SUITE_P` to declare it as type-parameterized.
+
+```cpp
+TYPED_TEST_SUITE_P(MyTypeParamTest);
+```
+
+3. **Write Test Patterns:** Use `TYPED_TEST_P` to define tests related to this suite.
+
+```cpp
+TYPED_TEST_P(MyTypeParamTest, HasDefaultConstructor) {
+  TypeParam val{};
+  EXPECT_TRUE(true);
+}
+```
+
+4. **Register the Test Patterns:** List test names for registration.
+
+```cpp
+REGISTER_TYPED_TEST_SUITE_P(MyTypeParamTest, HasDefaultConstructor);
+```
+
+5. **Instantiate the Test Suite:** Specify the types and an instantiation prefix.
+
+```cpp
+using Implementations = testing::Types<int, double>;
+INSTANTIATE_TYPED_TEST_SUITE_P(MyInstances, MyTypeParamTest, Implementations);
+```
+
+Test names will have a `MyInstances/` prefix to distinguish them.
+
+### Value and Type Parameterization Comparison
+
+| Feature                         | Value-Parameterized Tests                             | Typed Tests                            | Type-Parameterized Tests                   |
+|---------------------------------|----------------------------------------------------|--------------------------------------|------------------------------------------|
+| Test Parameter                  | Values (data)                                        | Types                                | Types                                    |
+| Fixture Declaration             | `class FooTest : public TestWithParam<T>`           | `template <typename T> class FooTest : Test` | `template <typename T> class FooTest : Test`  |
+| Test Macro                     | `TEST_P`                                            | `TYPED_TEST`                        | `TYPED_TEST_P`                           |
+| Test Suite Declaration          | None                                                | `TYPED_TEST_SUITE`                   | `TYPED_TEST_SUITE_P`                     |
+| Registering Tests (optional)    | N/A                                                 | N/A                                 | `REGISTER_TYPED_TEST_SUITE_P`             |
+| Test Instantiation              | `INSTANTIATE_TEST_SUITE_P`                           | `TYPED_TEST_SUITE` performs this internally | `INSTANTIATE_TYPED_TEST_SUITE_P`          |
+
+---
+
+## Best Practices and Pitfalls
+
+- **Choose the Right Parameterization:** Use value-parameterized tests for varying *data*, and typed or type-parameterized tests for varying *types*.
+- **Name Parameters Clearly:** Provide meaningful test names especially when instantiating to aid test reporting readability.
+- **Manage Shared Resources:** When sharing resources between parameterized tests, use `SetUpTestSuite()` and `TearDownTestSuite()` appropriately.
+- **Declare Access Modifiers:** Make sure `SetUpTestSuite()` and `TearDownTestSuite()` are `public` when using with parameterized fixtures.
+- **Suppress Uninstantiated Test Warnings:** Use `GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST` only when valid; otherwise uninstantiated tests will cause verification failures.
+- **Be Cautious with Parameter Lifetimes:** Parameters passed to generator functions are copied, ensure not to generate dangling references especially when using `ConvertGenerator`.
+
+---
+
+## Troubleshooting
+
+- **Tests Not Running?** 
+  - Verify you have instantiated your parameterized test suite.
+  - Confirm parameter generators provide values.
+- **Invalid Test Names?** 
+  - Custom name generators must produce strings with only ASCII alphanumerics and underscores.
+- **Compilation Failures in Typed Tests?**
+  - Check that your fixture template is well-formed and derives from `testing::Test`.
+  - Use `typename TestFixture::` prefix for dependent types inside typed tests.
+
+---
+
+## Summary
+
+Parameterized and typed tests are powerful tools that vastly improve test coverage with minimal code duplication. By mastering these, you can write cleaner, scalable, and maintainable test suites that elegantly exercise a broad range of inputs and types.
+
+---
+
+## Additional Resources
+
+- [GoogleTest Primer](../primer.md) for basic testing concepts
+- [Value-Parameterized Tests](../advanced.md#value-parameterized-tests) in the Advanced Topics
+- [Typed Tests](../advanced.md#typed-tests) and [Type-Parameterized Tests](../advanced.md#type-parameterized-tests)
+- [API Reference on Parameterized & Typed Tests](/api-reference/googletest-core-apis/parameterized-typed-tests)
+- [Troubleshooting Parameterized Tests](../getting-started/first-run-validation/troubleshooting-setup.md)
+
+---
+
+## Example: Complete Workflow with Value-Parameterized Test
+
+```cpp
+// Define the fixture
+class IsCapitalizedTest : public ::testing::TestWithParam<std::string> {};
+
+// Write the parameterized test
+TEST_P(IsCapitalizedTest, StartsWithCapital) {
+  const std::string& word = GetParam();
+  ASSERT_FALSE(word.empty());
+  EXPECT_TRUE(std::isupper(word[0]));
+}
+
+// Instantiate with test parameters
+INSTANTIATE_TEST_SUITE_P(
+    WordsStartCapital,
+    IsCapitalizedTest,
+    ::testing::Values("Apple", "Banana", "Cherry")
+);
+```
+
+---
+
+## Example: Typed Test
+
+```cpp
+// Define a fixture template
+template <typename T>
+class NumericLimitsTest : public ::testing::Test {};
+
+// List the types
+using NumericTypes = ::testing::Types<int, float, double>;
+
+// Associate the types
+TYPED_TEST_SUITE(NumericLimitsTest, NumericTypes);
+
+// Write tests
+TYPED_TEST(NumericLimitsTest, HasNonZeroMax) {
+  EXPECT_GT(std::numeric_limits<TypeParam>::max(), 0);
+}
+```
+
+---
+
+## Example: Type-Parameterized Test
+
+```cpp
+// Declare template fixture
+template <typename T>
+class ContainerTest : public ::testing::Test {
+ public:
+  T container;
+};
+
+// Declare the test suite
+TYPED_TEST_SUITE_P(ContainerTest);
+
+// Define tests
+TYPED_TEST_P(ContainerTest, IsEmptyInitially) {
+  EXPECT_TRUE(this->container.empty());
+}
+
+// Register tests
+REGISTER_TYPED_TEST_SUITE_P(ContainerTest, IsEmptyInitially);
+
+// Instantiate with list of types
+using ContainerTypes = ::testing::Types<std::vector<int>, std::list<int>>;
+INSTANTIATE_TYPED_TEST_SUITE_P(MyContainers, ContainerTest, ContainerTypes);
+```
+
+---
